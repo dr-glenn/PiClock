@@ -700,6 +700,7 @@ class myMain(QtGui.QWidget):
         if type(event) == QtGui.QMouseEvent:
             nextframe(1)
 
+bFullScreen = True
 configname = 'Config'
 
 if len(sys.argv) > 1:
@@ -788,14 +789,20 @@ lastkeytime = 0
 lastapiget = time.time()
 
 app = QtGui.QApplication(sys.argv)
-desktop = app.desktop()
-rec = desktop.screenGeometry()
-height = rec.height()
-width = rec.width()
+if bFullScreen:    # GDN
+    desktop = app.desktop()
+    rec = desktop.screenGeometry()
+    height = rec.height()
+    width = rec.width()
 
 signal.signal(signal.SIGINT, myquit)
 
 w = myMain()
+if not bFullScreen:    # GDN
+    # GDN
+    height = 600
+    width  = 1000
+    w.resize(width,height)
 w.setWindowTitle(os.path.basename(__file__))
 
 w.setStyleSheet("QWidget { background-color: black;}")
@@ -1169,6 +1176,7 @@ stimer.singleShot(10, qtstart)
 # print radarurl(Config.radar1,radar1rect)
 
 w.show()
-w.showFullScreen()
+if bFullScreen:     # GDN
+    w.showFullScreen()
 
 sys.exit(app.exec_())
