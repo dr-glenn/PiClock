@@ -807,8 +807,10 @@ w.setStyleSheet("QWidget { background-color: black;}")
 
 xscale = float(width) / 1440.0
 yscale = float(height) / 900.0
-xscale = float(width) / 1600.0
-yscale = float(height) / 900.0
+#xscale = float(width) / 1600.0
+#yscale = float(height) / 900.0
+#xscale = 1.0
+#yscale = 1.0
 
 frames = []
 framep = 0
