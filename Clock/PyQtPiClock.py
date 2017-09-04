@@ -807,6 +807,8 @@ w.setStyleSheet("QWidget { background-color: black;}")
 
 xscale = float(width) / 1440.0
 yscale = float(height) / 900.0
+xscale = float(width) / 1600.0
+yscale = float(height) / 900.0
 
 frames = []
 framep = 0
@@ -1109,7 +1111,9 @@ temp.setStyleSheet("#temp { font-family:sans-serif; color: " +
 temp.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 temp.setGeometry(0, height - 100, width, 50)
 
-
+# Create boxes on right side that contain forecasts for 9 time periods.
+# Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
+# I guess these regions are later filled with data.
 forecast = []
 for i in range(0, 9):
     lab = QtGui.QLabel(frame1)
@@ -1121,7 +1125,9 @@ for i in range(0, 9):
                       "px; " +
                       Config.fontattr +
                       "}")
-    lab.setGeometry(1137 * xscale, i * 100 * yscale,
+#    lab.setGeometry(1137 * xscale, i * 100 * yscale,
+#                    300 * xscale, 100 * yscale)
+    lab.setGeometry(width-(300*xscale)-3, i * 100 * yscale,
                     300 * xscale, 100 * yscale)
 
     icon = QtGui.QLabel(lab)
