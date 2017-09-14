@@ -23,6 +23,8 @@ sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
 
+numHourly = 3
+numDaily = 5
 
 def tick():
     global hourpixmap, minpixmap, secpixmap
@@ -235,8 +237,9 @@ def wxfinished():
                    wxdata['moon_phase']['phaseofMoon']
                    )
 
-    for i in range(0, 3):
-        f = wxdata['hourly_forecast'][i * 3 + 2]
+    # Fill first three boxes with today forecasts
+    for i in range(0, numHourly):
+        f = wxdata['hourly_forecast'][i * 3 + 2]    # 3 hours each?
         fl = forecast[i]
         iconurl = f['icon_url']
         icp = ''
@@ -275,7 +278,8 @@ def wxfinished():
 
         wx2.setText(s)
 
-    for i in range(3, 9):
+    # Fill next 5 boxes with future daily forecasts
+    for i in range(numHourly, numDaily+numHourly+1):
         f = wxdata['forecast']['simpleforecast']['forecastday'][i - 3]
         fl = forecast[i]
         icon = fl.findChild(QtGui.QLabel, "icon")
@@ -313,6 +317,8 @@ def wxfinished():
 
 
 def getwx():
+    # GDN: apparently wunderground API can simply fetch both hourly and 10 day
+    # forecast in one call.
     global wxurl
     global wxreply
     print "getting current and forecast:" + time.ctime()
@@ -630,7 +636,12 @@ class Radar(QtGui.QLabel):
 
 
 def realquit():
-    QtGui.QApplication.exit(0)
+    if False:
+	    # causes crash in Windows
+		QtGui.QApplication.exit(0)
+    else:
+	    # but this leaves some threads hanging
+		exit()
 
 
 def myquit(a=0, b=0):
@@ -700,7 +711,7 @@ class myMain(QtGui.QWidget):
         if type(event) == QtGui.QMouseEvent:
             nextframe(1)
 
-bFullScreen = True
+bFullScreen = False
 configname = 'Config'
 
 if len(sys.argv) > 1:
@@ -824,14 +835,14 @@ frame1 = QtGui.QFrame(w)
 frame1.setObjectName("frame1")
 frame1.setGeometry(0, 0, width, height)
 frame1.setStyleSheet("#frame1 { background-color: black; border-image: url(" +
-                     Config.background + ") 0 0 0 0 stretch stretch;}")
+                     Config.background + ") 0 0 0 0 repeat repeat;}")
 frames.append(frame1)
 
 frame2 = QtGui.QFrame(w)
 frame2.setObjectName("frame2")
 frame2.setGeometry(0, 0, width, height)
 frame2.setStyleSheet("#frame2 { background-color: blue; border-image: url(" +
-                     Config.background + ") 0 0 0 0 stretch stretch;}")
+                     Config.background + ") 0 0 0 0 repeat repeat;}")
 frame2.setVisible(False)
 frames.append(frame2)
 
@@ -1122,7 +1133,7 @@ temp.setGeometry(0, height - 100, width, 50)
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
 forecast = []
-for i in range(0, 9):
+for i in range(0, numHourly+numDaily+1):
     lab = QtGui.QLabel(frame1)
     lab.setObjectName("forecast" + str(i))
     lab.setStyleSheet("QWidget { background-color: transparent; color: " +
@@ -1179,4 +1190,5 @@ w.show()
 if bFullScreen:     # GDN
     w.showFullScreen()
 
-sys.exit(app.exec_())
+#sys.exit(app.exec_())
+exit(app.exec_())
