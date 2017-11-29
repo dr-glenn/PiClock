@@ -24,7 +24,9 @@ from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
 
 numHourly = 3
-numDaily = 5
+numDaily = 3   # was 5
+#iconAspect = Qt.IgnoreAspectRatio
+iconAspect = Qt.KeepAspectRatio
 
 def tick():
     global hourpixmap, minpixmap, secpixmap
@@ -180,12 +182,12 @@ def wxfinished():
         icp = 'n_'
     wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + icp + f['icon'] + ".png")
     wxicon.setPixmap(wxiconpixmap.scaled(
-        wxicon.width(), wxicon.height(), Qt.IgnoreAspectRatio,
+        wxicon.width(), wxicon.height(), iconAspect,
         Qt.SmoothTransformation))
     wxicon2.setPixmap(wxiconpixmap.scaled(
         wxicon.width(),
         wxicon.height(),
-        Qt.IgnoreAspectRatio,
+        iconAspect,
         Qt.SmoothTransformation))
     wxdesc.setText(f['weather'])
     wxdesc2.setText(f['weather'])
@@ -251,7 +253,7 @@ def wxfinished():
         icon.setPixmap(wxiconpixmap.scaled(
             icon.width(),
             icon.height(),
-            Qt.IgnoreAspectRatio,
+            iconAspect,
             Qt.SmoothTransformation))
         wx = fl.findChild(QtGui.QLabel, "wx")
         wx.setText(f['condition'])
@@ -280,14 +282,14 @@ def wxfinished():
 
     # Fill next 5 boxes with future daily forecasts
     for i in range(numHourly, numDaily+numHourly+1):
-        f = wxdata['forecast']['simpleforecast']['forecastday'][i - 3]
+        f = wxdata['forecast']['simpleforecast']['forecastday'][i - numHourly]
         fl = forecast[i]
         icon = fl.findChild(QtGui.QLabel, "icon")
         wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + f['icon'] + ".png")
         icon.setPixmap(wxiconpixmap.scaled(
             icon.width(),
             icon.height(),
-            Qt.IgnoreAspectRatio,
+            iconAspect,
             Qt.SmoothTransformation))
         wx = fl.findChild(QtGui.QLabel, "wx")
         wx.setText(f['conditions'])
@@ -488,7 +490,7 @@ class Radar(QtGui.QLabel):
         self.basepixmap.loadFromData(self.basereply.readAll())
         if self.basepixmap.size() != self.rect.size():
             self.basepixmap = self.basepixmap.scaled(self.rect.size(),
-                                                     Qt.KeepAspectRatio,
+                                                     iconAspect,
                                                      Qt.SmoothTransformation)
         if self.satellite:
             p = QPixmap(self.basepixmap.size())
@@ -511,7 +513,7 @@ class Radar(QtGui.QLabel):
         if self.mkpixmap.size() != self.rect.size():
             self.mkpixmap = self.mkpixmap.scaled(
                 self.rect.size(),
-                Qt.KeepAspectRatio,
+                iconAspect,
                 Qt.SmoothTransformation)
         br = QBrush(QColor(Config.dimcolor))
         painter = QPainter()
@@ -811,9 +813,12 @@ signal.signal(signal.SIGINT, myquit)
 w = myMain()
 if not bFullScreen:    # GDN
     # GDN
-    height = 600
-    width  = 1000
+    height = 480
+    width  = 800
     w.resize(width,height)
+# virtual app dimensions
+vWidth = 1600.0
+vHeight = 900.00
 w.setWindowTitle(os.path.basename(__file__))
 
 w.setStyleSheet("QWidget { background-color: black;}")
@@ -823,10 +828,10 @@ w.setStyleSheet("QWidget { background-color: black;}")
 # xscale = float(width)/fullbgpixmap.width()
 # yscale = float(height)/fullbgpixmap.height()
 
-xscale = float(width) / 1440.0
-yscale = float(height) / 900.0
-xscale = float(width) / 1600.0
-yscale = float(height) / 900.0
+#xscale = float(width) / 1440.0
+#yscale = float(height) / 900.0
+xscale = float(width) / vWidth
+yscale = float(height) / vHeight
 
 frames = []
 framep = 0
@@ -834,8 +839,24 @@ framep = 0
 frame1 = QtGui.QFrame(w)
 frame1.setObjectName("frame1")
 frame1.setGeometry(0, 0, width, height)
-frame1.setStyleSheet("#frame1 { background-color: black; border-image: url(" +
-                     Config.background + ") 0 0 0 0 repeat repeat;}")
+# 1. correct aspect ratio, but image is centered toward lower-right
+frame1_style = "background-color: black; border-image: url(%s) 0 0 0 0 repeat repeat;" %(Config.background)
+# 2. incorrect aspect, image is centered
+frame1_style = "background-color: black; border-image: url(%s);" %(Config.background)
+# 3. same as 1
+frame1_style = "background-color: black; border-image: url(%s) repeat repeat;" %(Config.background)
+# 4. same as 2
+frame1_style = "background-color: black; border-image: url(%s) 0 0 0 0;" %(Config.background)
+# 5. same as 2
+frame1_style = "background-color: black; border-image: url(%s); background-repeat: repeat-y;" %(Config.background)
+# 6. same as 2
+frame1_style = "background-color: black; border-image: url(%s); background-repeat: repeat-x;" %(Config.background)
+# 7. nope
+frame1_style = "background-color: black; border-image: url(%s); background-size: contain;" %(Config.background)
+# 8. same as 2 - if image aspect matches height-width, then all is well
+frame1_style = "background-color: black; border-image: url(%s);" %(Config.background)
+
+frame1.setStyleSheet("#frame1 {%s}" %(frame1_style))
 frames.append(frame1)
 
 frame2 = QtGui.QFrame(w)
@@ -854,6 +875,7 @@ frames.append(frame2)
 # frame3.setVisible(False)
 # frames.append(frame3)
 
+# GDN: this draws borders around the two radar maps
 squares1 = QtGui.QFrame(frame1)
 squares1.setObjectName("squares1")
 squares1.setGeometry(0, height - yscale * 600, xscale * 340, yscale * 600)
@@ -862,13 +884,19 @@ squares1.setStyleSheet(
     Config.squares1 +
     ") 0 0 0 0 stretch stretch;}")
 
+# GDN: this draws frames around the forecast boxes
 squares2 = QtGui.QFrame(frame1)
 squares2.setObjectName("squares2")
-squares2.setGeometry(width - xscale * 340, 0, xscale * 340, yscale * 900)
-squares2.setStyleSheet(
-    "#squares2 { background-color: transparent; border-image: url(" +
-    Config.squares2 +
-    ") 0 0 0 0 stretch stretch;}")
+# GDN: why 340? Later when the labels "lab" are created, the value of 300 is used
+squares2.setGeometry(width - xscale * 340, 0, xscale * 340, yscale * vHeight)
+if False:
+    squares2.setStyleSheet(
+        "#squares2 { background-color: transparent; border-image: url(" +
+        Config.squares2 +
+        ") 0 0 0 0 stretch stretch;}")
+else:
+    squares2.setStyleSheet(
+        "#squares2 { background-color: transparent; border:3px solid rgb(0, 255, 0);}")
 
 if not Config.digital:
     clockface = QtGui.QFrame(frame1)
@@ -931,17 +959,18 @@ else:
     clockface.setGraphicsEffect(glow)
 
 
+# GDN: next two are radar displays in lower left that are vertically stacked
 radar1rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
 
 radar2rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
 
+# GDN: next two are radar displays that occupy most of screen and are side-by-side
 radar3rect = QtCore.QRect(13 * xscale, 50 * yscale, 700 * xscale, 700 * yscale)
 objradar3 = Radar(frame2, Config.radar3, radar3rect, "radar3")
 
-radar4rect = QtCore.QRect(726 * xscale, 50 * yscale,
-                          700 * xscale, 700 * yscale)
+radar4rect = QtCore.QRect(726 * xscale, 50 * yscale,700 * xscale, 700 * yscale)
 objradar4 = Radar(frame2, Config.radar4, radar4rect, "radar4")
 
 
@@ -1133,40 +1162,57 @@ temp.setGeometry(0, height - 100, width, 50)
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
 forecast = []
+n_forecast = numHourly+numDaily
+ht_forecast = float(vHeight) / n_forecast
 for i in range(0, numHourly+numDaily+1):
     lab = QtGui.QLabel(frame1)
     lab.setObjectName("forecast" + str(i))
-    lab.setStyleSheet("QWidget { background-color: transparent; color: " +
+    if True:
+        #lab.setStyleSheet("QWidget {color:%s; font-size:%spx; %s }" %(Config.textcolor,str(int(20 * xscale)),Config.fontattr))
+        # was QWidget
+        #lab.setStyleSheet("QWidget { background-color: transparent; color: " +
+        lab.setStyleSheet("#forecast"+str(i)+" { background-color: transparent; color: " +
                       Config.textcolor +
                       "; font-size: " +
                       str(int(20 * xscale)) +
                       "px; " +
                       Config.fontattr +
-                      "}")
+                      ";border:1px solid rgb(0, 255, 255);}")
+    else:
+        lab.setFrameStyle(QtGui.QFrame.Box | QtGui.QFrame.Raised)
+        lab.setLineWidth(2)
 #    lab.setGeometry(1137 * xscale, i * 100 * yscale,
 #                    300 * xscale, 100 * yscale)
-    lab.setGeometry(width-(300*xscale)-3, i * 100 * yscale,
-                    300 * xscale, 100 * yscale)
+    # GDN: the yscale multiplier should not be 100, it should be derived
+    # GDN: earlier in "squares2", the value of 340 is used. Here it was 300.
+    if False:
+        lab.setGeometry(width-(300*xscale)-3, i * ht_forecast * yscale,
+                        300 * xscale, ht_forecast * yscale)
+    else:
+        lab.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
+                        (340*xscale)-12, ht_forecast * yscale)
 
     icon = QtGui.QLabel(lab)
     icon.setStyleSheet("#icon { background-color: transparent; }")
-    icon.setGeometry(0, 0, 100 * xscale, 100 * yscale)
+    icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
     icon.setObjectName("icon")
 
+    textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
+
     wx = QtGui.QLabel(lab)
-    wx.setStyleSheet("#wx { background-color: transparent; }")
+    wx.setStyleSheet("#wx {%s}" %(textStyle))
     wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
     wx.setObjectName("wx")
 
     wx2 = QtGui.QLabel(lab)
-    wx2.setStyleSheet("#wx2 { background-color: transparent; }")
-    wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, 100 * yscale)
+    wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
+    wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
     wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
     wx2.setWordWrap(True)
     wx2.setObjectName("wx2")
 
     day = QtGui.QLabel(lab)
-    day.setStyleSheet("#day { background-color: transparent; }")
+    day.setStyleSheet("#day {%s}" %(textStyle))
     day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
     day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
     day.setObjectName("day")
