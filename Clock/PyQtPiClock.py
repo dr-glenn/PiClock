@@ -1161,61 +1161,105 @@ temp.setGeometry(0, height - 100, width, 50)
 # Create boxes on right side that contain forecasts for 9 time periods.
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
+class FcstDisp(QtGui.QLabel):
+    def __init__(self,parent,i):
+        QtGui.QLabel.__init__(self, parent)
+        objName = "forecast"+str(i)
+        self.setObjectName(objName)
+        style = "%s { background-color: transparent; color:%s; font-size:%dpx; %s; border:1px solid rgb(0, 255, 255);}" \
+                %(objName,Config.textcolor,int(20 * xscale),Config.fontattr)
+        styleFmt = "#{0} {{ background-color: transparent; color:{1}; font-size:{2}px; {3}; border:1px solid rgb(0, 255, 255);}}"
+        style1 = styleFmt.format(objName,Config.textcolor,int(20 * xscale),Config.fontattr)
+        self.setStyleSheet(style1)
+        self.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
+                        (340*xscale)-12, ht_forecast * yscale)
+        # Now define the contents of FcstDisp box
+        # icon: displays a weather icon: cloud, sun, rain, etc.
+        icon = QtGui.QLabel(self)
+        icon.setStyleSheet("#icon { background-color: transparent; }")
+        icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
+        icon.setObjectName("icon")
+
+        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
+        # wxL text that spells out some of the forecast
+        wx = QtGui.QLabel(self)
+        wx.setStyleSheet("#wx {%s}" %(textStyle))
+        wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
+        wx.setObjectName("wx")
+
+        # wx2: text that spells out some of the forecast
+        wx2 = QtGui.QLabel(self)
+        wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
+        wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
+        wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        wx2.setWordWrap(True)
+        wx2.setObjectName("wx2")
+
+        # day: date and day of the week
+        day = QtGui.QLabel(self)
+        day.setStyleSheet("#day {%s}" %(textStyle))
+        day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
+        day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        day.setObjectName("day")
+    
 forecast = []
 n_forecast = numHourly+numDaily
 ht_forecast = float(vHeight) / n_forecast
 for i in range(0, numHourly+numDaily+1):
-    lab = QtGui.QLabel(frame1)
-    lab.setObjectName("forecast" + str(i))
     if True:
-        #lab.setStyleSheet("QWidget {color:%s; font-size:%spx; %s }" %(Config.textcolor,str(int(20 * xscale)),Config.fontattr))
-        # was QWidget
-        #lab.setStyleSheet("QWidget { background-color: transparent; color: " +
-        lab.setStyleSheet("#forecast"+str(i)+" { background-color: transparent; color: " +
-                      Config.textcolor +
-                      "; font-size: " +
-                      str(int(20 * xscale)) +
-                      "px; " +
-                      Config.fontattr +
-                      ";border:1px solid rgb(0, 255, 255);}")
+        lab = FcstDisp(frame1,i)
     else:
-        lab.setFrameStyle(QtGui.QFrame.Box | QtGui.QFrame.Raised)
-        lab.setLineWidth(2)
-#    lab.setGeometry(1137 * xscale, i * 100 * yscale,
-#                    300 * xscale, 100 * yscale)
-    # GDN: the yscale multiplier should not be 100, it should be derived
-    # GDN: earlier in "squares2", the value of 340 is used. Here it was 300.
-    if False:
-        lab.setGeometry(width-(300*xscale)-3, i * ht_forecast * yscale,
-                        300 * xscale, ht_forecast * yscale)
-    else:
-        lab.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
-                        (340*xscale)-12, ht_forecast * yscale)
+        lab = QtGui.QLabel(frame1)
+        lab.setObjectName("forecast" + str(i))
+        if True:
+            #lab.setStyleSheet("QWidget {color:%s; font-size:%spx; %s }" %(Config.textcolor,str(int(20 * xscale)),Config.fontattr))
+            # was QWidget
+            #lab.setStyleSheet("QWidget { background-color: transparent; color: " +
+            lab.setStyleSheet("#forecast"+str(i)+" { background-color: transparent; color: " +
+                          Config.textcolor +
+                          "; font-size: " +
+                          str(int(20 * xscale)) +
+                          "px; " +
+                          Config.fontattr +
+                          ";border:1px solid rgb(0, 255, 255);}")
+        else:
+            lab.setFrameStyle(QtGui.QFrame.Box | QtGui.QFrame.Raised)
+            lab.setLineWidth(2)
+    #    lab.setGeometry(1137 * xscale, i * 100 * yscale,
+    #                    300 * xscale, 100 * yscale)
+        # GDN: the yscale multiplier should not be 100, it should be derived
+        # GDN: earlier in "squares2", the value of 340 is used. Here it was 300.
+        if False:
+            lab.setGeometry(width-(300*xscale)-3, i * ht_forecast * yscale,
+                            300 * xscale, ht_forecast * yscale)
+        else:
+            lab.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
+                            (340*xscale)-12, ht_forecast * yscale)
 
-    icon = QtGui.QLabel(lab)
-    icon.setStyleSheet("#icon { background-color: transparent; }")
-    icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
-    icon.setObjectName("icon")
+        icon = QtGui.QLabel(lab)
+        icon.setStyleSheet("#icon { background-color: transparent; }")
+        icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
+        icon.setObjectName("icon")
 
-    textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
+        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
 
-    wx = QtGui.QLabel(lab)
-    wx.setStyleSheet("#wx {%s}" %(textStyle))
-    wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
-    wx.setObjectName("wx")
+        wx = QtGui.QLabel(lab)
+        wx.setStyleSheet("#wx {%s}" %(textStyle))
+        wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
+        wx.setObjectName("wx")
 
-    wx2 = QtGui.QLabel(lab)
-    wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
-    wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
-    wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-    wx2.setWordWrap(True)
-    wx2.setObjectName("wx2")
+        wx2 = QtGui.QLabel(lab)
+        wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
+        wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
+        wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        wx2.setWordWrap(True)
+        wx2.setObjectName("wx2")
 
-    day = QtGui.QLabel(lab)
-    day.setStyleSheet("#day {%s}" %(textStyle))
-    day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
-    day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-    day.setObjectName("day")
+        day = QtGui.QLabel(lab)
+        day.setStyleSheet("#day {%s}" %(textStyle))
+        day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
+        day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        day.setObjectName("day")
 
     forecast.append(lab)
 
