@@ -671,7 +671,8 @@ def fixupframe(frame, onoff):
                 # print "calling wxstop on radar on ",frame.objectName()
                 child.wxstop()
 
-
+# GDN: the display has 2 frames only (4-Jan-2018).
+# mousePressEvent anywhere within myMain will call this.
 def nextframe(plusminus):
     global frames, framep
     frames[framep].setVisible(False)
@@ -960,6 +961,7 @@ else:
 
 
 # GDN: next two are radar displays in lower left that are vertically stacked
+# They are contained within frame1
 radar1rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
 
@@ -967,6 +969,7 @@ radar2rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
 
 # GDN: next two are radar displays that occupy most of screen and are side-by-side
+# They are contained within frame2
 radar3rect = QtCore.QRect(13 * xscale, 50 * yscale, 700 * xscale, 700 * yscale)
 objradar3 = Radar(frame2, Config.radar3, radar3rect, "radar3")
 
@@ -1158,7 +1161,7 @@ temp.setStyleSheet("#temp { font-family:sans-serif; color: " +
 temp.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 temp.setGeometry(0, height - 100, width, 50)
 
-# Create boxes on right side that contain forecasts for 9 time periods.
+# Create boxes on right side that contain forecasts for different time periods, 'i'.
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
 class FcstDisp(QtGui.QLabel):
@@ -1201,6 +1204,10 @@ class FcstDisp(QtGui.QLabel):
         day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
         day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         day.setObjectName("day")
+        
+    def mousePressEvent(self, event):
+        if type(event) == QtGui.QMouseEvent:
+            pass
     
 forecast = []
 n_forecast = numHourly+numDaily
