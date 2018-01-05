@@ -12,6 +12,7 @@ wulocation = LatLng(primary_coordinates[0], primary_coordinates[1])
 primary_location = LatLng(primary_coordinates[0], primary_coordinates[1])
 noaastream = 'http://audioplayer.wunderground.com:80/tim273/edina'
 background = 'images/eclipse-800-480.png'
+background = ''
 squares1 = 'images/squares1-kevin.png'
 squares2 = 'images/squares2-kevin.png'
 icons = 'icons-lightblue'

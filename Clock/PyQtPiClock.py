@@ -1180,7 +1180,7 @@ class FcstDisp(QtGui.QLabel):
         icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
         icon.setObjectName("icon")
 
-        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
+        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(25 * xscale)),Config.fontattr)
         # wxL text that spells out some of the forecast
         wx = QtGui.QLabel(self)
         wx.setStyleSheet("#wx {%s}" %(textStyle))
