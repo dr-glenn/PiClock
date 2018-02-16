@@ -239,84 +239,87 @@ def wxfinished():
                    wxdata['moon_phase']['phaseofMoon']
                    )
 
-    # Fill first three boxes with today forecasts
-    for i in range(0, numHourly):
-        f = wxdata['hourly_forecast'][i * 3 + 2]    # 3 hours each?
-        fl = forecast[i]
+    def _fill_fcst_box(f,fl,daily=True):
+        '''
+        @param daily: boolean, True for daily, 24 hour, False for hourly forecasts
+        @param f: the forecast object from Wunderground
+        @param f1: the UI box object to display the forecast
+        '''
+        global iconAspect
         iconurl = f['icon_url']
         icp = ''
-        if (re.search('/nt_', iconurl)):
+        hourly = not daily
+        if not daily and re.search('/nt_', iconurl):
             icp = 'n_'
         icon = fl.findChild(QtGui.QLabel, "icon")
-        wxiconpixmap = QtGui.QPixmap(
-            Config.icons + "/" + icp + f['icon'] + ".png")
+        wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + icp + f['icon'] + ".png")
         icon.setPixmap(wxiconpixmap.scaled(
             icon.width(),
             icon.height(),
             iconAspect,
             Qt.SmoothTransformation))
         wx = fl.findChild(QtGui.QLabel, "wx")
-        wx.setText(f['condition'])
-        day = fl.findChild(QtGui.QLabel, "day")
-        day.setText(f['FCTTIME']['weekday_name'] + ' ' + f['FCTTIME']['civil'])
-        wx2 = fl.findChild(QtGui.QLabel, "wx2")
-        s = ''
-        if float(f['pop']) > 0.0:
-            s += f['pop'] + '% '
-        if Config.metric:
-            if float(f['snow']['metric']) > 0.0:
-                s += Config.LSnow + f['snow']['metric'] + 'mm '
-            else:
-                if float(f['qpf']['metric']) > 0.0:
-                    s += Config.LRain + f['qpf']['metric'] + 'mm '
-            s += f['temp']['metric'] + u'°C'
+        if not daily:
+            wx.setText(f['condition'])
         else:
-            if float(f['snow']['english']) > 0.0:
-                s += Config.LSnow + f['snow']['english'] + 'in '
-            else:
-                if float(f['qpf']['english']) > 0.0:
-                    s += Config.LRain + f['qpf']['english'] + 'in '
-            s += f['temp']['english'] + u'°F'
-
-        wx2.setText(s)
-
-    # Fill next 5 boxes with future daily forecasts
-    for i in range(numHourly, numDaily+numHourly+1):
-        f = wxdata['forecast']['simpleforecast']['forecastday'][i - numHourly]
-        fl = forecast[i]
-        icon = fl.findChild(QtGui.QLabel, "icon")
-        wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + f['icon'] + ".png")
-        icon.setPixmap(wxiconpixmap.scaled(
-            icon.width(),
-            icon.height(),
-            iconAspect,
-            Qt.SmoothTransformation))
-        wx = fl.findChild(QtGui.QLabel, "wx")
-        wx.setText(f['conditions'])
+            wx.setText(f['conditions'])
         day = fl.findChild(QtGui.QLabel, "day")
-        day.setText(f['date']['weekday'])
+        if not daily:
+            day.setText(f['FCTTIME']['weekday_name'] + ' ' + f['FCTTIME']['civil'])
+            snow = 'snow'
+            qpf = 'qpf'
+            if Config.metric:
+                units = {snow:'metric', qpf:'metric'}
+            else:
+                units = {snow:'english', qpf:'english'}
+        else:
+            day.setText(f['date']['weekday'])
+            snow = 'snow_allday'
+            qpf = 'qpf_allday'
+            if Config.metric:
+                units = {snow:'cm', qpf:'mm'}
+            else:
+                units = {snow:'in', qpf:'in'}
         wx2 = fl.findChild(QtGui.QLabel, "wx2")
         s = ''
         if float(f['pop']) > 0.0:
             s += str(f['pop']) + '% '
         if Config.metric:
-            if float(f['snow_allday']['cm']) > 0.0:
-                s += Config.LSnow + str(f['snow_allday']['cm']) + 'cm '
+            if float(f[snow]['metric']) > 0.0:
+                s += Config.LSnow + str(f[snow][units[snow]]) + 'mm '
             else:
-                if float(f['qpf_allday']['mm']) > 0.0:
-                    s += Config.LRain + str(f['qpf_allday']['mm']) + 'mm '
-            s += str(f['high']['celsius']) + '/' + \
-                str(f['low']['celsius']) + u'°C'
+                if float(f[qpf]['metric']) > 0.0:
+                    s += Config.LRain + str(f[qpf][units[qpf]]) + 'mm '
+            if not daily:
+                s += str(f['temp']['metric']) + u'°C'
+            else:
+                s += str(f['high']['celsius']) + '/' + \
+                    str(f['low']['celsius']) + u'°C'
         else:
-            if float(f['snow_allday']['in']) > 0.0:
-                s += Config.LSnow + str(f['snow_allday']['in']) + 'in '
+            if float(f[snow][units[snow]]) > 0.0:
+                s += Config.LSnow + str(f[snow][units[snow]]) + 'in '
             else:
-                if float(f['qpf_allday']['in']) > 0.0:
-                    s += Config.LRain + str(f['qpf_allday']['in']) + 'in '
-            s += str(f['high']['fahrenheit']) + '/' + \
-                str(f['low']['fahrenheit']) + u'°F'
-        wx2.setText(s)
+                if float(f[qpf][units[qpf]]) > 0.0:
+                    s += Config.LRain + str(f[qpf][units[qpf]]) + 'in '
+            if not daily:
+                s += str(f['temp']['english']) + u'°F'
+            else:
+                s += str(f['high']['fahrenheit']) + '/' + \
+                    str(f['low']['fahrenheit']) + u'°F'
 
+        wx2.setText(s)
+    
+    # Fill first three boxes with today forecasts
+    for i in range(0, numHourly):
+        f = wxdata['hourly_forecast'][i * 3 + 2]    # 3 hours each?
+        fl = forecast[i]
+        _fill_fcst_box(f,fl,daily=False)
+
+    # Fill next boxes with future daily forecasts
+    for i in range(numHourly, numDaily+numHourly+1):
+        f = wxdata['forecast']['simpleforecast']['forecastday'][i - numHourly]
+        fl = forecast[i]
+        _fill_fcst_box(f,fl,daily=True)
 
 def getwx():
     # GDN: apparently wunderground API can simply fetch both hourly and 10 day
@@ -324,6 +327,14 @@ def getwx():
     global wxurl
     global wxreply
     print "getting current and forecast:" + time.ctime()
+    # Refer to wunderground API docs: https://www.wunderground.com/weather/api/d/docs?d=data/forecast10day
+    # Each of the queries returns a lot of JSON. I'm going to list the expected returns.
+    '''
+    conditions: current_observation + <details>
+    astronomy: moon_phase, sunrise, sunset
+    hourly10day: hourly_forecast:FCTTIME + <various forecast values>
+    forecast10day: forecast:txt_forecast:forecastday and forecast:simpleforecast:forecastday
+    '''
     wxurl = Config.wuprefix + ApiKeys.wuapi + \
         '/conditions/astronomy/hourly10day/forecast10day/lang:' + \
         Config.wuLanguage + '/q/'
@@ -671,7 +682,8 @@ def fixupframe(frame, onoff):
                 # print "calling wxstop on radar on ",frame.objectName()
                 child.wxstop()
 
-
+# GDN: the display has 2 frames only (4-Jan-2018).
+# mousePressEvent anywhere within myMain will call this.
 def nextframe(plusminus):
     global frames, framep
     frames[framep].setVisible(False)
@@ -960,6 +972,7 @@ else:
 
 
 # GDN: next two are radar displays in lower left that are vertically stacked
+# They are contained within frame1
 radar1rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
 
@@ -967,6 +980,7 @@ radar2rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
 
 # GDN: next two are radar displays that occupy most of screen and are side-by-side
+# They are contained within frame2
 radar3rect = QtCore.QRect(13 * xscale, 50 * yscale, 700 * xscale, 700 * yscale)
 objradar3 = Radar(frame2, Config.radar3, radar3rect, "radar3")
 
@@ -1158,21 +1172,32 @@ temp.setStyleSheet("#temp { font-family:sans-serif; color: " +
 temp.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 temp.setGeometry(0, height - 100, width, 50)
 
-# Create boxes on right side that contain forecasts for 9 time periods.
+class Forecast:
+    '''
+    Contains a single forecast from Wunderground.
+    The data here will be diaplayed in a FcstDisp GUI object.
+    '''
+    def __init__(self):
+        pass
+        
+# Create boxes on right side that contain forecasts for different time periods, 'i'.
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
 class FcstDisp(QtGui.QLabel):
+    boxWidth = 340
+    textHeight = 20
     def __init__(self,parent,i):
         QtGui.QLabel.__init__(self, parent)
         objName = "forecast"+str(i)
         self.setObjectName(objName)
         style = "%s { background-color: transparent; color:%s; font-size:%dpx; %s; border:1px solid rgb(0, 255, 255);}" \
-                %(objName,Config.textcolor,int(20 * xscale),Config.fontattr)
+                %(objName,Config.textcolor,int(self.textHeight * xscale),Config.fontattr)
         styleFmt = "#{0} {{ background-color: transparent; color:{1}; font-size:{2}px; {3}; border:1px solid rgb(0, 255, 255);}}"
-        style1 = styleFmt.format(objName,Config.textcolor,int(20 * xscale),Config.fontattr)
+        style1 = styleFmt.format(objName,Config.textcolor,int(self.textHeight * xscale),Config.fontattr)
         self.setStyleSheet(style1)
-        self.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
-                        (340*xscale)-12, ht_forecast * yscale)
+        # Set the screen coordinates of the box (xorigin,yorigin,width,height)
+        self.setGeometry(width-(self.boxWidth*xscale)+6, i * ht_forecast * yscale,
+                        (self.boxWidth*xscale)-12, ht_forecast * yscale)
         # Now define the contents of FcstDisp box
         # icon: displays a weather icon: cloud, sun, rain, etc.
         icon = QtGui.QLabel(self)
@@ -1201,66 +1226,16 @@ class FcstDisp(QtGui.QLabel):
         day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
         day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         day.setObjectName("day")
+        
+    def mousePressEvent(self, event):
+        if type(event) == QtGui.QMouseEvent:
+            pass
     
 forecast = []
 n_forecast = numHourly+numDaily
 ht_forecast = float(vHeight) / n_forecast
 for i in range(0, numHourly+numDaily+1):
-    if True:
-        lab = FcstDisp(frame1,i)
-    else:
-        lab = QtGui.QLabel(frame1)
-        lab.setObjectName("forecast" + str(i))
-        if True:
-            #lab.setStyleSheet("QWidget {color:%s; font-size:%spx; %s }" %(Config.textcolor,str(int(20 * xscale)),Config.fontattr))
-            # was QWidget
-            #lab.setStyleSheet("QWidget { background-color: transparent; color: " +
-            lab.setStyleSheet("#forecast"+str(i)+" { background-color: transparent; color: " +
-                          Config.textcolor +
-                          "; font-size: " +
-                          str(int(20 * xscale)) +
-                          "px; " +
-                          Config.fontattr +
-                          ";border:1px solid rgb(0, 255, 255);}")
-        else:
-            lab.setFrameStyle(QtGui.QFrame.Box | QtGui.QFrame.Raised)
-            lab.setLineWidth(2)
-    #    lab.setGeometry(1137 * xscale, i * 100 * yscale,
-    #                    300 * xscale, 100 * yscale)
-        # GDN: the yscale multiplier should not be 100, it should be derived
-        # GDN: earlier in "squares2", the value of 340 is used. Here it was 300.
-        if False:
-            lab.setGeometry(width-(300*xscale)-3, i * ht_forecast * yscale,
-                            300 * xscale, ht_forecast * yscale)
-        else:
-            lab.setGeometry(width-(340*xscale)+6, i * ht_forecast * yscale,
-                            (340*xscale)-12, ht_forecast * yscale)
-
-        icon = QtGui.QLabel(lab)
-        icon.setStyleSheet("#icon { background-color: transparent; }")
-        icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
-        icon.setObjectName("icon")
-
-        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(20 * xscale)),Config.fontattr)
-
-        wx = QtGui.QLabel(lab)
-        wx.setStyleSheet("#wx {%s}" %(textStyle))
-        wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
-        wx.setObjectName("wx")
-
-        wx2 = QtGui.QLabel(lab)
-        wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
-        wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
-        wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        wx2.setWordWrap(True)
-        wx2.setObjectName("wx2")
-
-        day = QtGui.QLabel(lab)
-        day.setStyleSheet("#day {%s}" %(textStyle))
-        day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
-        day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-        day.setObjectName("day")
-
+    lab = FcstDisp(frame1,i)
     forecast.append(lab)
 
 manager = QtNetwork.QNetworkAccessManager()
