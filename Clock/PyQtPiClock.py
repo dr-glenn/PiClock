@@ -23,14 +23,21 @@ sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
 
-numHourly = 3
-fcst_hours_delta = 3    # num hours between the hourly forecast displays
+intHourlyData = 3   # interval in hours between hourly data to display
+numHourlyData = 3   # number of hourly data records to store
+numHourlyDisp = 3   # number of hourly data records to display
+numDailyData  = 10  # number of daily data records to store
+numDailyDisp  = 3   # number of daily data records to display
+maxDailyDisp  = 6   # number to display when there are no hourly forecast displays
+numHourly = numHourlyDisp
+fcst_hours_delta = intHourlyData    # num hours between the hourly forecast displays
 fcst_hours_0 = 2    # first hour after present time for hourly forecast
-numDaily = 3   # was 5
+numDaily = numDailyDisp   # was 5
 fcst_hours = range(fcst_hours_0,fcst_hours_0+numHourly*fcst_hours_delta,fcst_hours_delta)
 fcst_days  = range(0,numDaily)
 #iconAspect = Qt.IgnoreAspectRatio
 iconAspect = Qt.KeepAspectRatio
+onlyDaily = False   # forecast displays are mix of hourly and daily or only daily
 
         
 class CurrentObsDisp(QtGui.QLabel):
@@ -255,6 +262,10 @@ class FcstDisp(QtGui.QLabel):
     boxWidth = 340
     textHeight = 20
     def __init__(self,parent,i):
+        '''
+        :param parent: the QtGui object that holds this FcstDisp object
+        :param i: the index of this object, becomes part of ObjectName
+        '''
         QtGui.QLabel.__init__(self, parent)
         objName = "forecast"+str(i)
         self.setObjectName(objName)
@@ -296,10 +307,9 @@ class FcstDisp(QtGui.QLabel):
         day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         day.setObjectName("day")
 
-    def fill_daily_fcst_box(self,f,daily=True):
+    def fill_daily_fcst_box(self,f):
         '''
-        @param daily: boolean, True for daily, 24 hour, False for hourly forecasts
-        @param f: the forecast object from Wunderground
+        :param f: the forecast object from Wunderground
         Decode the Wunderground forecast and write into the forecast box.
         The Wunderground API returns JSON. It seems really sloppy, because there are
         different keys depending on if it's an hourly or daily forecast.
@@ -333,10 +343,9 @@ class FcstDisp(QtGui.QLabel):
 
         wx2.setText(s)
 
-    def fill_hourly_fcst_box(self,f,daily=False):
+    def fill_hourly_fcst_box(self,f):
         '''
-        @param daily: boolean, True for daily, 24 hour, False for hourly forecasts
-        @param f: the forecast object from Wunderground
+        :param f: the forecast object from Wunderground
         Decode the Wunderground forecast and write into the forecast box.
         The Wunderground API returns JSON. It seems really sloppy, because there are
         different keys depending on if it's an hourly or daily forecast.
@@ -371,8 +380,10 @@ class FcstDisp(QtGui.QLabel):
         wx2.setText(s)
         
     def mousePressEvent(self, event):
+        global onlyDaily
         if type(event) == QtGui.QMouseEvent:
-            pass
+            onlyDaily = not onlyDaily
+            updateFcstDisp()
     
 
 def tick():
@@ -518,6 +529,8 @@ def gettemp():
 
 class WundergroundData:
     '''
+    Abstract Class.
+    Child classes: CurrentObs, FcstHourlyData, FcstDailyData.
     Parses JSON returned from Wunderground according to a list of keys.
     We request current observations and hourly and daily forecasts.
     Each of these items contains different sets of data with different keys.
@@ -557,7 +570,7 @@ class WundergroundData:
 class CurrentObs(WundergroundData):
     # Lookup table for key used in application display,
     # key used in wxdata returned by wunderground,
-    # metric=1 or English=0 units,
+    # metric=1 or English=0 units or no_units=-1
     # and displays units (if any) in the application
     obsKeys = [
         # app key,  data key,   metric, units
@@ -586,7 +599,7 @@ class CurrentObs(WundergroundData):
     def __init__(self,wxdata):
         WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
 
-class Forecast_Daily(WundergroundData):
+class FcstDailyData(WundergroundData):
     # Lookup table for key used in application display,
     # key used in wxdata returned by wunderground,
     # metric=1 or English=0 units,
@@ -595,7 +608,7 @@ class Forecast_Daily(WundergroundData):
         # app key,  data key,   metric, units
         ('icon',                'icon',                -1,      ''),
         ('wx_text',             'conditions',             -1,      ''),
-        ('day',             ['date','weekday'],             -1,      ''),
+        ('day',             ['date','weekday_short'],             -1,      ''),
         ('temp_high',                ['high','celsius'],               1,      u'°C'),
         ('temp_low',                ['low','celsius'],               1,      u'°C'),
         ('temp_high',                ['high','fahrenheit'],               0,      u'°F'),
@@ -609,7 +622,7 @@ class Forecast_Daily(WundergroundData):
     def __init__(self,wxdata):
         WundergroundData.__init__(self,wxdata,self.obsKeys,daily=True)
 
-class Forecast_Hourly(WundergroundData):
+class FcstHourlyData(WundergroundData):
     # Lookup table for key used in application display,
     # key used in wxdata returned by wunderground,
     # metric=1 or English=0 units,
@@ -618,7 +631,7 @@ class Forecast_Hourly(WundergroundData):
         # app key,  data key,   metric, units
         ('icon',                'icon',                -1,      ''),
         ('wx_text',             'condition',             -1,      ''),
-        ('day',             ['FCTTIME','weekday_name'],             -1,      ''),
+        ('day',             ['FCTTIME','weekday_name_abbrev'],             -1,      ''),
         ('hour',             ['FCTTIME','civil'],             -1,      ''),
         ('temp',                ['temp','metric'],               1,      u'°C'),
         ('temp',                ['temp','english'],               0,      u'°F'),
@@ -630,14 +643,6 @@ class Forecast_Hourly(WundergroundData):
     ]
     def __init__(self,wxdata):
         WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
-
-def getHourlyFcst(wxdata,hour):
-    fcst = {}
-    return fcst
-    
-def getDailyFcst(wxdata,day):
-    fcst = {}
-    return fcst
     
 def debugPrint(bugFile,theString):
     bugFile.write(theString)
@@ -682,20 +687,52 @@ def wxfinished():
                    wxdata['moon_phase']['phaseofMoon']
                    )
     
-    # Fill first three boxes with today forecasts
-    for i in range(0, numHourly):
-        f = wxdata['hourly_forecast'][i * 3 + 2]    # 3 hours each?
-        fl = forecast[i]
-        hourly = Forecast_Hourly(f)
-        fl.fill_hourly_fcst_box(hourly)
+    if True:
+        updateFcstDisp()
+    else:
+        # Fill first few boxes with today forecasts
+        for i in range(0, numHourly):
+            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
+            fcstDisp = forecast[i]
+            hourly = FcstHourlyData(f)
+            fcstDisp.fill_hourly_fcst_box(hourly)
 
-    # Fill next boxes with future daily forecasts
-    for i in range(numHourly, numDaily+numHourly):
-        f = wxdata['forecast']['simpleforecast']['forecastday'][i - numHourly]
-        fl = forecast[i]
-        daily = Forecast_Daily(f)
-        fl.fill_daily_fcst_box(daily)
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i+numHourly]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
 
+def updateFcstDisp():
+    '''
+    called by a mouse click somewhere
+    '''
+    global wxdata, onlyDaily
+    if onlyDaily:
+        numDaily = maxDailyDisp
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
+    else:
+        numDaily = numDailyDisp
+        # Fill first few boxes with today forecasts
+        for i in range(0, numHourly):
+            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
+            fcstDisp = forecast[i]
+            hourly = FcstHourlyData(f)
+            fcstDisp.fill_hourly_fcst_box(hourly)
+
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i+numHourly]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
+    
 def getwx():
     '''
     Get weather forecasts from Weather Underground.
@@ -933,7 +970,7 @@ class Radar(QtGui.QLabel):
             self.lastwx = time.time()
             self.retries = 0
         else:
-            # radar image retreval failed
+            # radar image retrieval failed
             if self.retries > 3:
                 # give up, last successful animation stays.
                 # the next normal radar_refresh time (default 10min) will apply
@@ -1030,7 +1067,7 @@ class Radar(QtGui.QLabel):
 
 
 def realquit():
-    if False:
+    if True:
 	    # causes crash in Windows
 		QtGui.QApplication.exit(0)
     else:
