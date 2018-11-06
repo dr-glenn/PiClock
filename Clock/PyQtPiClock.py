@@ -10,6 +10,13 @@ import json
 import locale
 import random
 import re
+import logging
+from logging.handlers import RotatingFileHandler
+#logging.basicConfig(filename='piclock.log', level=logging.WARNING)
+logger = logging.getLogger('piclock')
+logger.setLevel(logging.DEBUG)
+handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+logger.addHandler(handler)
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
@@ -382,8 +389,11 @@ class FcstDisp(QtGui.QLabel):
     def mousePressEvent(self, event):
         global onlyDaily
         if type(event) == QtGui.QMouseEvent:
-            onlyDaily = not onlyDaily
-            updateFcstDisp()
+            if event.button() == Qt.LeftButton:
+                onlyDaily = not onlyDaily
+                updateFcstDisp()
+            elif event.button() == Qt.RightButton:
+                pass
     
 
 def tick():
@@ -488,9 +498,30 @@ def tick():
         datex.setText(ds)
         datex2.setText(ds)
 
+import mqtt_fetch
+mqtt_fetch.run_as_service()
+def getMqtt():
+    '''
+    Fetch environmental data using MQTT.
+    '''
+    if False:
+        temp = 70.1
+        humid = 50.5
+    else:
+        if 'temp' in mqtt_fetch.msg_dict:
+            temp = float(mqtt_fetch.msg_dict['temp'])
+        else:
+            temp = 0.0
+        if 'rel_hum' in mqtt_fetch.msg_dict:
+            humid = float(mqtt_fetch.msg_dict['rel_hum'])
+        else:
+            humid = 0.0
+    return temp,humid
 
 def tempfinished():
-    global tempreply, temp
+    global tempreply, tempHouse
+    t,h = getMqtt()
+    tempHouse.setText('Temp=%.1f, Hum=%d' %(t,int(h))) # GDN: just testing
     if tempreply.error() != QNetworkReply.NoError:
         return
     tempstr = str(tempreply.readAll())
@@ -514,7 +545,7 @@ def tempfinished():
                 s = ''
                 for tk in tempdata['temps']:
                     s += ' ' + tk + ':' + tempdata['temps'][tk]
-    temp.setText(s)
+    tempHouse.setText(s)
 
 
 def gettemp():
@@ -546,7 +577,7 @@ class WundergroundData:
                     kk = key[1]
                     data = wxdata[kk[0]][kk[1]]
                 except:
-                    print 'key=%s, wxdata=%s' %(str(kk),str(wxdata[kk[0]]))
+                    logger.error('key=%s, wxdata=%s' %(str(kk),str(wxdata[kk[0]])))
             else:
                 data = wxdata[key[1]]
             if key[2] == -1 or key[2] == Config.metric:
@@ -706,9 +737,10 @@ def wxfinished():
 
 def updateFcstDisp():
     '''
-    called by a mouse click somewhere
+    Called by a mouse click somewhere.
+    Will display either mix of hourly and daily forecasts or only daily forecasts.
     '''
-    global wxdata, onlyDaily
+    global wxdata, onlyDaily, numDaily, numHourly
     if onlyDaily:
         numDaily = maxDailyDisp
         # Fill next boxes with future daily forecasts
@@ -743,7 +775,7 @@ def getwx():
     # forecast in one call.
     global wxurl
     global wxreply
-    print "getting current and forecast:" + time.ctime()
+    logger.info("getting current and forecast:" + time.ctime())
     # Refer to wunderground API docs: https://www.wunderground.com/weather/api/d/docs?d=data/forecast10day
     # Each of the queries returns a lot of JSON. I'm going to list the expected returns.
     '''
@@ -758,7 +790,7 @@ def getwx():
     wxurl += str(Config.wulocation.lat) + ',' + \
         str(Config.wulocation.lng) + '.json'
     wxurl += '?r=' + str(random.random())
-    print wxurl
+    logger.debug('wxurl='+wxurl)
     r = QUrl(wxurl)
     r = QNetworkRequest(r)
     wxreply = manager.get(r)
@@ -795,12 +827,11 @@ def qtstart():
 
     wxtimer = QtCore.QTimer()
     wxtimer.timeout.connect(getallwx)
-    wxtimer.start(1000 * Config.weather_refresh *
-                  60 + random.uniform(1000, 10000))
+    wxtimer.start(1000 * 60 * Config.weather_refresh + random.uniform(1000, 10000))
 
     temptimer = QtCore.QTimer()
     temptimer.timeout.connect(gettemp)
-    temptimer.start(1000 * 10 * 60 + random.uniform(1000, 10000))
+    temptimer.start(1000 * 60 * Config.home_refresh + random.uniform(1000, 10000))
 
 
 class Radar(QtGui.QLabel):
@@ -816,10 +847,10 @@ class Radar(QtGui.QLabel):
         except KeyError:
             pass
         self.baseurl = self.mapurl(radar, rect, False)
-        print "google map base url: " + self.baseurl
+        logger.debug("google map base url: " + self.baseurl)
         self.mkurl = self.mapurl(radar, rect, True)
         self.wxurl = self.radarurl(radar, rect)
-        print "radar url: " + self.wxurl
+        logger.debug("radar url: " + self.wxurl)
         QtGui.QLabel.__init__(self, parent)
         self.interval = Config.radar_refresh * 60
         self.lastwx = 0
@@ -954,18 +985,17 @@ class Radar(QtGui.QLabel):
 
     def wxfinished(self):
         if self.wxreply.error() != QNetworkReply.NoError:
-            print "get radar error " + self.myname + ":" + \
-                str(self.wxreply.error())
+            logger.error("get radar error " + self.myname + ":" + str(self.wxreply.error()))
             self.lastwx = 0
             return
-        print "radar map received:" + self.myname + ":" + time.ctime()
+        logger.debug("radar map received:" + self.myname + ":" + time.ctime())
         self.wxmovie.stop()
         self.wxdata = QtCore.QByteArray(self.wxreply.readAll())
         self.wxbuff = QtCore.QBuffer(self.wxdata)
         self.wxbuff.open(QtCore.QIODevice.ReadOnly)
         mov = QMovie(self.wxbuff, 'GIF')
-        print "radar map frame count:" + self.myname + ":" + \
-            str(mov.frameCount()) + ":r" + str(self.retries)
+        logger.debug("radar map frame count:" + self.myname + ":" + \
+            str(mov.frameCount()) + ":r" + str(self.retries))
         if mov.frameCount() > 2:
             self.lastwx = time.time()
             self.retries = 0
@@ -1000,7 +1030,7 @@ class Radar(QtGui.QLabel):
             lastapiget = time.time()
         else:
             i = lastapiget - time.time()
-        print "get radar api call spacing oneshot get i=" + str(i)
+        logger.debug("get radar api call spacing oneshot get i=" + str(i))
         QtCore.QTimer.singleShot(i * 1000, self.getwx2)
 
     def getwx2(self):
@@ -1010,7 +1040,7 @@ class Radar(QtGui.QLabel):
                 return
         except Exception:
             pass
-        print "getting radar map " + self.myname + ":" + time.ctime()
+        logger.debug("getting radar map " + self.myname + ":" + time.ctime())
         self.wxreq = QNetworkRequest(
             QUrl(self.wxurl + '&rrrand=' + str(time.time())))
         self.wxreply = manager.get(self.wxreq)
@@ -1041,7 +1071,7 @@ class Radar(QtGui.QLabel):
             self.timer, QtCore.SIGNAL("timeout()"), self.getwx)
 
     def wxstart(self):
-        print "wxstart for " + self.myname
+        logger.debug("wxstart for " + self.myname)
         if (self.lastwx == 0 or (self.lastwx + self.interval) < time.time()):
             self.getwx()
         # random 1 to 10 seconds added to refresh interval to spread the
@@ -1052,7 +1082,7 @@ class Radar(QtGui.QLabel):
         QtCore.QTimer.singleShot(1000, self.wxmovie.start)
 
     def wxstop(self):
-        print "wxstop for " + self.myname
+        logger.debug("wxstop for " + self.myname)
         self.timer.stop()
         self.wxmovie.stop()
 
@@ -1150,7 +1180,7 @@ if len(sys.argv) > 1:
     configname = sys.argv[1]
 
 if not os.path.isfile(configname + ".py"):
-    print "Config file not found %s" % configname + ".py"
+    print "ERROR: Config file not found %s" % configname + ".py"
     exit(1)
 
 Config = __import__(configname)
@@ -1428,17 +1458,17 @@ bottom.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 bottom.setGeometry(0, height - 50, width, 50)
 
 # This is display of your household temperature from a network connection
-temp = QtGui.QLabel(frame1)
-temp.setObjectName("temp")
-temp.setStyleSheet("#temp { font-family:sans-serif; color: " +
+tempHouse = QtGui.QLabel(frame1)
+tempHouse.setObjectName("temp")
+tempHouse.setStyleSheet("#temp { font-family:sans-serif; color: " +
                    Config.textcolor +
                    "; background-color: transparent; font-size: " +
                    str(int(30 * xscale)) +
                    "px; " +
                    Config.fontattr +
                    "}")
-temp.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-temp.setGeometry(0, height - 100, width, 50)
+tempHouse.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+tempHouse.setGeometry(0, height - 100, width, 50)
 
 # Create array of boxes to display hourly and daily forecasts.
 # But the boxes are just placeholders for dynamically updated forecasts.
