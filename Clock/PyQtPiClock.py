@@ -12,11 +12,13 @@ import random
 import re
 import logging
 from logging.handlers import RotatingFileHandler
-#logging.basicConfig(filename='piclock.log', level=logging.WARNING)
+logging.basicConfig(filename='piclock.log', level=logging.WARNING)
+handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logging.getLogger('').addHandler(handler)
 logger = logging.getLogger('piclock')
 logger.setLevel(logging.DEBUG)
-handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
-logger.addHandler(handler)
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter

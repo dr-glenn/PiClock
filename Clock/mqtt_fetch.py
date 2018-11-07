@@ -5,6 +5,7 @@ import time
 #import Adafruit_DHT
 import logging
 logger = logging.getLogger('mqtt')
+logger.setLevel(logging.DEBUG)
 
 # Here are params to connect to Cayenne MQTT
 MQTT_HOST = "mqtt.mydevices.com"    # Cayenne services
@@ -77,6 +78,7 @@ def run_as_service():
     client = my_connect()
     my_subscribe(client)
     # Messages will be found in msg_dict
+    print "end run_as_service"
     
 msg_max = 2
 msg_cnt = 0
