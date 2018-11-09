@@ -28,7 +28,7 @@ def on_connect(mclient, userdata, flags, rc):
 
 def on_message(mclient, userdata, message):
     msg = str(message.payload.decode("utf-8"))
-    logger.debug("received message =%s" %(msg))
+    logger.info("received message =%s" %(msg))
     # message looks like: "temp,c=22.200" or "rel_hum,p=48.5"
     param,value = msg.split(',')
     unit,fvalue = value.split('=')
