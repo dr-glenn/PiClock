@@ -12,13 +12,15 @@ import random
 import re
 import logging
 from logging.handlers import RotatingFileHandler
-logging.basicConfig(filename='piclock.log', level=logging.WARNING)
+#logging.basicConfig(filename='piclock.log', level=logging.WARNING)
 handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 handler.setFormatter(formatter)
-logging.getLogger('').addHandler(handler)
+defLogger = logging.getLogger('')
+defLogger.addHandler(handler)
+defLogger.setLevel(logging.INFO)
 logger = logging.getLogger('piclock')
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.INFO)
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
@@ -512,6 +514,7 @@ def getMqtt():
     else:
         if 'temp' in mqtt_fetch.msg_dict:
             temp = float(mqtt_fetch.msg_dict['temp'])
+            temp = 9.0/5.0 * temp + 32.0
         else:
             temp = 0.0
         if 'rel_hum' in mqtt_fetch.msg_dict:
@@ -699,6 +702,8 @@ def wxfinished():
     global wxicon2, temper2, wxdesc2
 
     wxstr = str(wxreply.readAll())
+    if not wxstr:
+        return
     wxdata = json.loads(wxstr)
     if False:
         # GDN: I wonder what's in there? Let's write to file and find out.
@@ -1470,7 +1475,7 @@ tempHouse.setStyleSheet("#temp { font-family:sans-serif; color: " +
                    Config.fontattr +
                    "}")
 tempHouse.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-tempHouse.setGeometry(0, height - 100, width, 50)
+tempHouse.setGeometry(0, height - 80, width, 50)
 
 # Create array of boxes to display hourly and daily forecasts.
 # But the boxes are just placeholders for dynamically updated forecasts.
