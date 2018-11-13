@@ -527,6 +527,7 @@ def tempfinished():
     global tempreply, tempHouse
     t,h = getMqtt()
     tempHouse.setText('Temp=%.1f, Hum=%d' %(t,int(h))) # GDN: just testing
+    '''
     if tempreply.error() != QNetworkReply.NoError:
         return
     tempstr = str(tempreply.readAll())
@@ -551,9 +552,11 @@ def tempfinished():
                 for tk in tempdata['temps']:
                     s += ' ' + tk + ':' + tempdata['temps'][tk]
     tempHouse.setText(s)
+    '''
 
 
 def gettemp():
+    '''
     global tempreply
     host = 'localhost'
     if platform.uname()[1] == 'KW81':
@@ -562,6 +565,8 @@ def gettemp():
     r = QNetworkRequest(r)
     tempreply = manager.get(r)
     tempreply.finished.connect(tempfinished)
+    '''
+    tempfinished()
 
 class WundergroundData:
     '''
