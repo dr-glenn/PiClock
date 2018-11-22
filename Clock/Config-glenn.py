@@ -43,7 +43,7 @@ digitalsize = 200
 metric = 0  # 0 = English, 1 = Metric
 radar_refresh = 10      # minutes
 weather_refresh = 30    # minutes
-home_refresh = 1	# minutes
+home_refresh = 1        # temp and humidity at home
 # Wind in degrees instead of cardinal 0 = cardinal, 1 = degrees
 wind_degrees = 0
 # Depreciated: use 'satellite' key in radar section, on a per radar basis
