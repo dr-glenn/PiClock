@@ -11,16 +11,16 @@ import locale
 import random
 import re
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler,TimedRotatingFileHandler
 #logging.basicConfig(filename='piclock.log', level=logging.WARNING)
-handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+#handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+handler = TimedRotatingFileHandler('piclock.log', when='midnight', interval=1, backupCount=3)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 handler.setFormatter(formatter)
 defLogger = logging.getLogger('')
 defLogger.addHandler(handler)
 defLogger.setLevel(logging.INFO)
 logger = logging.getLogger('piclock')
-#logger.setLevel(logging.INFO)
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
@@ -33,6 +33,8 @@ from subprocess import Popen
 sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
+import mqtt_fetch
+isMqttRun = False
 
 intHourlyData = 3   # interval in hours between hourly data to display
 numHourlyData = 3   # number of hourly data records to store
@@ -502,12 +504,15 @@ def tick():
         datex.setText(ds)
         datex2.setText(ds)
 
-import mqtt_fetch
-mqtt_fetch.run_as_service()
+#mqtt_fetch.run_as_service()
 def getMqtt():
     '''
     Fetch environmental data using MQTT.
     '''
+    global isMqttRun
+    if not isMqttRun:
+        mqtt_fetch.run_as_service()
+        isMqttRun = True
     if False:
         temp = 70.1
         humid = 50.5
@@ -527,6 +532,7 @@ def tempfinished():
     global tempreply, tempHouse
     t,h = getMqtt()
     tempHouse.setText('Temp=%.1f, Hum=%d' %(t,int(h))) # GDN: just testing
+    '''
     if tempreply.error() != QNetworkReply.NoError:
         return
     tempstr = str(tempreply.readAll())
@@ -551,9 +557,11 @@ def tempfinished():
                 for tk in tempdata['temps']:
                     s += ' ' + tk + ':' + tempdata['temps'][tk]
     tempHouse.setText(s)
+    '''
 
 
 def gettemp():
+    '''
     global tempreply
     host = 'localhost'
     if platform.uname()[1] == 'KW81':
@@ -562,6 +570,8 @@ def gettemp():
     r = QNetworkRequest(r)
     tempreply = manager.get(r)
     tempreply.finished.connect(tempfinished)
+    '''
+    tempfinished()
 
 class WundergroundData:
     '''
@@ -1180,7 +1190,7 @@ class myMain(QtGui.QWidget):
         if type(event) == QtGui.QMouseEvent:
             nextframe(1)
 
-bFullScreen = False
+bFullScreen = True
 configname = 'Config'
 
 if len(sys.argv) > 1:
