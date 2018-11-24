@@ -10,6 +10,17 @@ import json
 import locale
 import random
 import re
+import logging
+from logging.handlers import RotatingFileHandler,TimedRotatingFileHandler
+#logging.basicConfig(filename='piclock.log', level=logging.WARNING)
+#handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+handler = TimedRotatingFileHandler('piclock.log', when='midnight', interval=1, backupCount=3)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
+handler.setFormatter(formatter)
+defLogger = logging.getLogger('')
+defLogger.addHandler(handler)
+defLogger.setLevel(logging.INFO)
+logger = logging.getLogger('piclock')
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
@@ -22,9 +33,379 @@ from subprocess import Popen
 sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
+import mqtt_fetch
+isMqttRun = False
 
+intHourlyData = 3   # interval in hours between hourly data to display
+numHourlyData = 3   # number of hourly data records to store
+numHourlyDisp = 3   # number of hourly data records to display
+numDailyData  = 10  # number of daily data records to store
+numDailyDisp  = 3   # number of daily data records to display
+maxDailyDisp  = 6   # number to display when there are no hourly forecast displays
+numHourly = numHourlyDisp
+fcst_hours_delta = intHourlyData    # num hours between the hourly forecast displays
+fcst_hours_0 = 2    # first hour after present time for hourly forecast
+numDaily = numDailyDisp   # was 5
+fcst_hours = range(fcst_hours_0,fcst_hours_0+numHourly*fcst_hours_delta,fcst_hours_delta)
+fcst_days  = range(0,numDaily)
+#iconAspect = Qt.IgnoreAspectRatio
+iconAspect = Qt.KeepAspectRatio
+onlyDaily = False   # forecast displays are mix of hourly and daily or only daily
+
+        
+class CurrentObsDisp(QtGui.QLabel):
+    '''
+    Create the display boxes for current observations.
+    '''
+    def __init__(self,parent,bSmall):
+        QtGui.QLabel.__init__(self, parent)
+        objName = "curr_obs"
+        self.setObjectName(objName)
+        self.small = bSmall
+        frame = parent
+        if bSmall:
+            # datex displays "Thursday March 15th 2018".
+            # It is large font, positioned at top center of screen
+            self.datex = QtGui.QLabel(frame)
+            self.datex.setObjectName("datex")
+            self.datex.setStyleSheet("#datex { font-family:sans-serif; color: " +
+                                Config.textcolor +
+                                "; background-color: transparent; font-size: " +
+                                str(int(50 * xscale)) +
+                                "px; " +
+                                Config.fontattr +
+                                "}")
+            self.datex.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.datex.setGeometry(0, 0, width, 100)
+
+            # wxicon - a large weather icon (150x150) near top-left
+            ypos = -25
+            self.wxicon = QtGui.QLabel(frame)
+            self.wxicon.setObjectName("wxicon")
+            self.wxicon.setStyleSheet("#wxicon { background-color: transparent; }")
+            self.wxicon.setGeometry(75 * xscale, ypos * yscale, 150 * xscale, 150 * yscale)
+            #self.wxicon.setGeometry(75 * xscale, ypos * yscale, 100 * xscale, 100 * yscale)
+
+            # with icon size=150, ypos+=130
+            ypos += 130
+            # with icon size=100, ypos+=80
+            #ypos += 80
+            self.wxdesc = QtGui.QLabel(frame)
+            self.wxdesc.setObjectName("wxdesc")
+            self.wxdesc.setStyleSheet("#wxdesc { background-color: transparent; color: " +
+                                 Config.textcolor +
+                                 "; font-size: " +
+                                 str(int(30 * xscale)) +
+                                 "px; " +
+                                 Config.fontattr +
+                                 "}")
+            self.wxdesc.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wxdesc.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            ypos += 25
+            self.temper = QtGui.QLabel(frame)
+            self.temper.setObjectName("temper")
+            self.temper.setStyleSheet("#temper { background-color: transparent; color: " +
+                                 Config.textcolor +
+                                 "; font-size: " +
+                                 str(int(50 * xscale)) +
+                                 "px; " +
+                                 Config.fontattr +
+                                 "}")
+            self.temper.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.temper.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            ypos += 60
+            self.press = QtGui.QLabel(frame)
+            self.press.setObjectName("press")
+            self.press.setStyleSheet("#press { background-color: transparent; color: " +
+                                Config.textcolor +
+                                "; font-size: " +
+                                str(int(25 * xscale)) +
+                                "px; " +
+                                Config.fontattr +
+                                "}")
+            self.press.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.press.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            ypos += 30
+            self.humidity = QtGui.QLabel(frame)
+            self.humidity.setObjectName("humidity")
+            self.humidity.setStyleSheet("#humidity { background-color: transparent; color: " +
+                                   Config.textcolor +
+                                   "; font-size: " +
+                                   str(int(25 * xscale)) +
+                                   "px; " +
+                                   Config.fontattr +
+                                   "}")
+            self.humidity.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.humidity.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            ypos += 30
+            self.wind = QtGui.QLabel(frame)
+            self.wind.setObjectName("wind")
+            self.wind.setStyleSheet("#wind { background-color: transparent; color: " +
+                               Config.textcolor +
+                               "; font-size: " +
+                               str(int(20 * xscale)) +
+                               "px; " +
+                               Config.fontattr +
+                               "}")
+            self.wind.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wind.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            # wind2 - this is the "feels_like" temperature, based on wind speed
+            ypos += 20
+            self.wind2 = QtGui.QLabel(frame)
+            self.wind2.setObjectName("wind2")
+            self.wind2.setStyleSheet("#wind2 { background-color: transparent; color: " +
+                                Config.textcolor +
+                                "; font-size: " +
+                                str(int(20 * xscale)) +
+                                "px; " +
+                                Config.fontattr +
+                                "}")
+            self.wind2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wind2.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+
+            # wdate - shows current time and date + hourly and daily precip
+            ypos += 20
+            self.wdate = QtGui.QLabel(frame)
+            self.wdate.setObjectName("wdate")
+            self.wdate.setStyleSheet("#wdate { background-color: transparent; color: " +
+                                Config.textcolor +
+                                "; font-size: " +
+                                str(int(20 * xscale)) +
+                                "px; " +
+                                Config.fontattr +
+                                "}")
+            self.wdate.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wdate.setGeometry(3 * xscale, ypos * yscale, 350 * xscale, 100)
+        else:
+            # Large display shown when radar is also large size
+            # datex2 displays "Thursday March 15th 2018".
+            # It is large font, positioned at bottom right of screen when radar is full-scrren
+            self.datex2 = QtGui.QLabel(frame)
+            self.datex2.setObjectName("datex2")
+            self.datex2.setStyleSheet("#datex2 { font-family:sans-serif; color: " +
+                                 Config.textcolor +
+                                 "; background-color: transparent; font-size: " +
+                                 str(int(50 * xscale)) + "px; " +
+                                 Config.fontattr +
+                                 "}")
+            self.datex2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.datex2.setGeometry(800 * xscale, 780 * yscale, 640 * xscale, 100)
+            self.datey2 = QtGui.QLabel(frame)
+            self.datey2.setObjectName("datey2")
+            self.datey2.setStyleSheet("#datey2 { font-family:sans-serif; color: " +
+                                 Config.textcolor +
+                                 "; background-color: transparent; font-size: " +
+                                 str(int(50 * xscale)) +
+                                 "px; " +
+                                 Config.fontattr +
+                                 "}")
+            self.datey2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.datey2.setGeometry(800 * xscale, 840 * yscale, 640 * xscale, 100)
+
+            # wxicon2 - a large weather icon (150x150) near bottom-left when radar is full-screen
+            self.wxicon2 = QtGui.QLabel(frame)
+            self.wxicon2.setObjectName("wxicon2")
+            self.wxicon2.setStyleSheet("#wxicon2 { background-color: transparent; }")
+            self.wxicon2.setGeometry(0 * xscale, 750 * yscale, 150 * xscale, 150 * yscale)
+
+            self.wxdesc2 = QtGui.QLabel(frame)
+            self.wxdesc2.setObjectName("wxdesc2")
+            self.wxdesc2.setStyleSheet("#wxdesc2 { background-color: transparent; color: " +
+                                  Config.textcolor +
+                                  "; font-size: " +
+                                  str(int(50 * xscale)) +
+                                  "px; " +
+                                  Config.fontattr +
+                                  "}")
+            self.wxdesc2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            self.wxdesc2.setGeometry(400 * xscale, 800 * yscale, 400 * xscale, 100)
+
+            self.temper2 = QtGui.QLabel(frame)
+            self.temper2.setObjectName("temper2")
+            self.temper2.setStyleSheet("#temper2 { background-color: transparent; color: " +
+                                  Config.textcolor +
+                                  "; font-size: " +
+                                  str(int(70 * xscale)) +
+                                  "px; " +
+                                  Config.fontattr +
+                                  "}")
+            self.temper2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.temper2.setGeometry(125 * xscale, 780 * yscale, 300 * xscale, 100)
+        
+    def fill_obs(self,currObs):
+        wxiconpixmap = QtGui.QPixmap(currObs.getObsStr('icon'))
+        if self.small:
+            self.wxicon.setPixmap(wxiconpixmap.scaled(
+                self.wxicon.width(), self.wxicon.height(), iconAspect,
+                Qt.SmoothTransformation))
+            self.wxdesc.setText(currObs.getObsStr('wx_text'))
+            self.temper.setText(currObs.getObsStr('temp'))
+            self.press.setText(Config.LPressure +
+                          currObs.getObsStr('press') + ' ' + currObs.getObsStr('press_trend'))
+            self.humidity.setText(Config.LHumidity + currObs.getObsStr('rel_hum'))
+            wd = currObs.getObsStr('wind_dir')
+            if Config.wind_degrees:
+                wd = str(currObs.getObsStr('wind_degrees'))
+            self.wind.setText(Config.LWind +
+                         wd + ' ' +
+                         str(currObs.getObsStr('wind_speed')) +
+                         Config.Lgusting +
+                         str(currObs.getObsStr('wind_gust')))
+            self.wind2.setText(Config.LFeelslike + currObs.getObsStr('temp_feels_like'))
+            self.wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
+                int(currObs.getObsStr('local_epoch')))) +
+                Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + ' ' +
+                Config.LToday + currObs.getObsStr('precip_today'))
+        else:
+            self.wxicon2.setPixmap(wxiconpixmap.scaled(
+                self.wxicon2.width(), self.wxicon2.height(), iconAspect,
+                Qt.SmoothTransformation))
+            self.wxdesc2.setText(currObs.getObsStr('wx_text'))
+            self.temper2.setText(currObs.getObsStr('temp'))
+        
+# Create boxes on right side that contain forecasts for different time periods, 'i'.
+# Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
+# I guess these regions are later filled with data.
+class FcstDisp(QtGui.QLabel):
+    boxWidth = 340
+    textHeight = 20
+    def __init__(self,parent,i):
+        '''
+        :param parent: the QtGui object that holds this FcstDisp object
+        :param i: the index of this object, becomes part of ObjectName
+        '''
+        QtGui.QLabel.__init__(self, parent)
+        objName = "forecast"+str(i)
+        self.setObjectName(objName)
+        style = "%s { background-color: transparent; color:%s; font-size:%dpx; %s; border:1px solid rgb(0, 255, 255);}" \
+                %(objName,Config.textcolor,int(self.textHeight * xscale),Config.fontattr)
+        styleFmt = "#{0} {{ background-color: transparent; color:{1}; font-size:{2}px; {3}; border:1px solid rgb(0, 255, 255);}}"
+        style1 = styleFmt.format(objName,Config.textcolor,int(self.textHeight * xscale),Config.fontattr)
+        self.setStyleSheet(style1)
+        # Set the screen coordinates of the box (xorigin,yorigin,width,height)
+        self.setGeometry(width-(self.boxWidth*xscale)+6, i * ht_forecast * yscale,
+                        (self.boxWidth*xscale)-12, ht_forecast * yscale)
+        # Now define the contents of FcstDisp box
+        # icon: displays a weather icon: cloud, sun, rain, etc.
+        icon = QtGui.QLabel(self)
+        icon.setStyleSheet("#icon { background-color: transparent; }")
+        icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
+        icon.setObjectName("icon")
+
+        textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(25 * xscale)),Config.fontattr)
+        # wx: text that spells out some of the forecast
+        wx = QtGui.QLabel(self)
+        wx.setStyleSheet("#wx {%s}" %(textStyle))
+        wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
+        wx.setObjectName("wx")
+
+        # wx2: text that spells out some of the forecast
+        wx2 = QtGui.QLabel(self)
+        wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
+        wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
+        wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        wx2.setWordWrap(True)
+        wx2.setObjectName("wx2")
+
+        # day: date and day of the week
+        day = QtGui.QLabel(self)
+        day.setStyleSheet("#day {%s}" %(textStyle))
+        #day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
+        day.setGeometry(100 * xscale, ht_forecast * yscale - 25, 200 * xscale, 25 * yscale)
+        day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        day.setObjectName("day")
+
+    def fill_daily_fcst_box(self,f):
+        '''
+        :param f: the forecast object from Wunderground
+        Decode the Wunderground forecast and write into the forecast box.
+        The Wunderground API returns JSON. It seems really sloppy, because there are
+        different keys depending on if it's an hourly or daily forecast.
+        '''
+        global iconAspect
+        icon = self.findChild(QtGui.QLabel,"icon")
+        wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
+        icon.setPixmap(wxiconpixmap.scaled(
+            icon.width(),
+            icon.height(),
+            iconAspect,
+            Qt.SmoothTransformation))
+        # Show conditions, such as "clear" or "cloudy"
+        wx = self.findChild(QtGui.QLabel, "wx")
+        wx.setText(f.getObsStr('wx_text'))
+        # Show the day name + time if hourly forecast
+        day = self.findChild(QtGui.QLabel, "day")
+        day.setText(f.getObsStr('day'))   # TODO: we're missing f['FCTTIME']['civil']
+        # Show precip forecast and temperature. If daily, then show temp range.
+        wx2 = self.findChild(QtGui.QLabel, "wx2")
+        s = ''
+        s += f.getObsStr('pop') + ' '     # TODO: we need special handling when pop==0.0
+        # TODO: need special handling if snow or qpf == 0.0
+        snow = f.getObsStr('snow')
+        if snow and len(snow) > 0:
+            s += Config.LSnow + f.getObsStr('snow')+ ' '
+        qpf = f.getObsStr('qpf')
+        if qpf and len(qpf) > 0:
+            s += Config.LRain + f.getObsStr('qpf') + ' '
+        s += f.getObsStr('temp_high') + '/' + f.getObsStr('temp_low')
+
+        wx2.setText(s)
+
+    def fill_hourly_fcst_box(self,f):
+        '''
+        :param f: the forecast object from Wunderground
+        Decode the Wunderground forecast and write into the forecast box.
+        The Wunderground API returns JSON. It seems really sloppy, because there are
+        different keys depending on if it's an hourly or daily forecast.
+        '''
+        global iconAspect
+        icon = self.findChild(QtGui.QLabel,"icon")
+        wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
+        icon.setPixmap(wxiconpixmap.scaled(
+            icon.width(),
+            icon.height(),
+            iconAspect,
+            Qt.SmoothTransformation))
+        # Show conditions, such as "clear" or "cloudy"
+        wx = self.findChild(QtGui.QLabel, "wx")
+        wx.setText(f.getObsStr('wx_text'))
+        # Show the day name + time if hourly forecast
+        day = self.findChild(QtGui.QLabel, "day")
+        day.setText(f.getObsStr('day')+' '+f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
+        # Show precip forecast and temperature. If daily, then show temp range.
+        wx2 = self.findChild(QtGui.QLabel, "wx2")
+        s = ''
+        s += f.getObsStr('pop') + ' '     # TODO: we need special handling when pop==0.0
+        # TODO: need special handling if snow or qpf == 0.0
+        snow = f.getObsStr('snow')
+        if snow and len(snow) > 0:
+            s += Config.LSnow + f.getObsStr('snow')+ ' '
+        qpf = f.getObsStr('qpf')
+        if qpf and len(qpf) > 0:
+            s += Config.LRain + f.getObsStr('qpf') + ' '
+        s += f.getObsStr('temp')
+
+        wx2.setText(s)
+        
+    def mousePressEvent(self, event):
+        global onlyDaily
+        if type(event) == QtGui.QMouseEvent:
+            if event.button() == Qt.LeftButton:
+                onlyDaily = not onlyDaily
+                updateFcstDisp()
+            elif event.button() == Qt.RightButton:
+                pass
+    
 
 def tick():
+    '''
+    Update the clock display
+    '''
     global hourpixmap, minpixmap, secpixmap
     global hourpixmap2, minpixmap2, secpixmap2
     global lastmin, lastday, lasttimestr
@@ -123,9 +504,35 @@ def tick():
         datex.setText(ds)
         datex2.setText(ds)
 
+#mqtt_fetch.run_as_service()
+def getMqtt():
+    '''
+    Fetch environmental data using MQTT.
+    '''
+    global isMqttRun
+    if not isMqttRun:
+        mqtt_fetch.run_as_service()
+        isMqttRun = True
+    if False:
+        temp = 70.1
+        humid = 50.5
+    else:
+        if 'temp' in mqtt_fetch.msg_dict:
+            temp = float(mqtt_fetch.msg_dict['temp'])
+            temp = 9.0/5.0 * temp + 32.0
+        else:
+            temp = 0.0
+        if 'rel_hum' in mqtt_fetch.msg_dict:
+            humid = float(mqtt_fetch.msg_dict['rel_hum'])
+        else:
+            humid = 0.0
+    return temp,humid
 
 def tempfinished():
-    global tempreply, temp
+    global tempreply, tempHouse
+    t,h = getMqtt()
+    tempHouse.setText('Temp=%.1f, Hum=%d' %(t,int(h))) # GDN: just testing
+    '''
     if tempreply.error() != QNetworkReply.NoError:
         return
     tempstr = str(tempreply.readAll())
@@ -149,10 +556,12 @@ def tempfinished():
                 s = ''
                 for tk in tempdata['temps']:
                     s += ' ' + tk + ':' + tempdata['temps'][tk]
-    temp.setText(s)
+    tempHouse.setText(s)
+    '''
 
 
 def gettemp():
+    '''
     global tempreply
     host = 'localhost'
     if platform.uname()[1] == 'KW81':
@@ -161,69 +570,160 @@ def gettemp():
     r = QNetworkRequest(r)
     tempreply = manager.get(r)
     tempreply.finished.connect(tempfinished)
+    '''
+    tempfinished()
 
+class WundergroundData:
+    '''
+    Abstract Class.
+    Child classes: CurrentObs, FcstHourlyData, FcstDailyData.
+    Parses JSON returned from Wunderground according to a list of keys.
+    We request current observations and hourly and daily forecasts.
+    Each of these items contains different sets of data with different keys.
+    Once the data is parsed, the application can then request that the
+    data be returned as a string, ready for display.
+    '''
+    def __init__(self,wxdata,dataKeys,daily=False):
+        self.daily = daily
+        self.obs = {}
+        for key in dataKeys:
+            if isinstance(key[1],(list,tuple)):
+                try:
+                    kk = key[1]
+                    data = wxdata[kk[0]][kk[1]]
+                except:
+                    logger.error('key=%s, wxdata=%s' %(str(kk),str(wxdata[kk[0]])))
+            else:
+                data = wxdata[key[1]]
+            if key[2] == -1 or key[2] == Config.metric:
+                # Config.metric has value of either 0 or 1
+                self.obs[key[0]] = [data,key[3]]
+            else:
+                # key[2] != Config.metric, so skip this obs
+                pass
+                
+        # Special case for 'icon', because we have local copies
+        iconurl = wxdata['icon_url']
+        icp = ''
+        if not daily and re.search('/nt_', iconurl):
+            icp = 'n_'
+        self.obs['icon'] = [Config.icons + "/" + icp + wxdata['icon'] + ".png",'']
+                
+    def getObsStr(self,key):
+        # Get value from wxdata + the appropriate units string
+        return str(self.obs[key][0]) + self.obs[key][1]
+        
+class CurrentObs(WundergroundData):
+    # Lookup table for key used in application display,
+    # key used in wxdata returned by wunderground,
+    # metric=1 or English=0 units or no_units=-1
+    # and displays units (if any) in the application
+    obsKeys = [
+        # app key,  data key,   metric, units
+        ('icon',                'icon',                -1,      ''),
+        ('wx_text',             'weather',             -1,      ''),
+        ('press_trend',         'pressure_trend',      -1,      ''),
+        ('rel_hum',             'relative_humidity',   -1,      ''),
+        ('wind_dir',            'wind_dir',            -1,      ''),
+        ('wind_degrees',        'wind_degrees',        -1,      ''),
+        ('local_epoch',         'local_epoch',         -1,      ''),
+        ('temp',                'temp_c',               1,      u'°C'),
+        ('temp',                'temp_f',               0,      u'°F'),
+        ('press',               'pressure_mb',          1,      'mm'),
+        ('press',               'pressure_in',          0,      'in'),
+        ('temp_feels_like',     'feelslike_c',          1,      u'°C'),
+        ('temp_feels_like',     'feelslike_f',          0,      u'°F'),
+        ('wind_speed',          'wind_kph',             1,      ''),
+        ('wind_speed',          'wind_mph',             0,      ''),
+        ('wind_gust',           'wind_gust_kph',        1,      ''),
+        ('wind_gust',           'wind_gust_mph',        0,      ''),
+        ('precip_1hr',          'precip_1hr_metric',    1,      'mm'),
+        ('precip_today',        'precip_today_metric',  1,      'mm'),
+        ('precip_1hr',          'precip_1hr_in',        0,      'in'),
+        ('precip_today',        'precip_today_in',      0,      'in'),
+    ]
+    def __init__(self,wxdata):
+        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
 
+class FcstDailyData(WundergroundData):
+    # Lookup table for key used in application display,
+    # key used in wxdata returned by wunderground,
+    # metric=1 or English=0 units,
+    # and displays units (if any) in the application
+    obsKeys = [
+        # app key,  data key,   metric, units
+        ('icon',                'icon',                -1,      ''),
+        ('wx_text',             'conditions',             -1,      ''),
+        ('day',             ['date','weekday_short'],             -1,      ''),
+        ('temp_high',                ['high','celsius'],               1,      u'°C'),
+        ('temp_low',                ['low','celsius'],               1,      u'°C'),
+        ('temp_high',                ['high','fahrenheit'],               0,      u'°F'),
+        ('temp_low',                ['low','fahrenheit'],               0,      u'°F'),
+        ('pop',          'pop',    -1,      '%'),
+        ('qpf',          ['qpf_allday','mm'],    1,      'mm'),
+        ('qpf',          ['qpf_allday','in'],        0,      'in'),
+        ('snow',          ['snow_allday','cm'],    1,      'mm'),
+        ('snow',          ['snow_allday','in'],        0,      'in'),
+    ]
+    def __init__(self,wxdata):
+        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=True)
+
+class FcstHourlyData(WundergroundData):
+    # Lookup table for key used in application display,
+    # key used in wxdata returned by wunderground,
+    # metric=1 or English=0 units,
+    # and displays units (if any) in the application
+    obsKeys = [
+        # app key,  data key,   metric, units
+        ('icon',                'icon',                -1,      ''),
+        ('wx_text',             'condition',             -1,      ''),
+        ('day',             ['FCTTIME','weekday_name_abbrev'],             -1,      ''),
+        ('hour',             ['FCTTIME','civil'],             -1,      ''),
+        ('temp',                ['temp','metric'],               1,      u'°C'),
+        ('temp',                ['temp','english'],               0,      u'°F'),
+        ('pop',          'pop',    -1,      '%'),
+        ('qpf',          ['qpf','metric'],    1,      'mm'),
+        ('qpf',          ['qpf','english'],        0,      'in'),
+        ('snow',          ['snow','metric'],    1,      'mm'),
+        ('snow',          ['snow','english'],        0,      'in'),
+    ]
+    def __init__(self,wxdata):
+        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
+    
+def debugPrint(bugFile,theString):
+    bugFile.write(theString)
+    bugFile.write('\n')
+
+'''
+Notes on the JSON returned by wunderground.
+- Apparently 'forecast' returns 10 days. There is a single array 'forecastday' and within it
+  are dict objects that are designated simply by "period":<N>, where N runs from 0 to 19.
+  These forecast periods apparently are simply daytime and nighttime forecasts for each day.
+- But also 'forecast' object contains 'simpleforecast'. This is a dict that contains an array
+  named 'forecastday', and it contains a lot more info than the other 'forecastday'.
+  Here there is only one forecast per day, and they are numbered 1 to 10.
+  I made a request at 1330 PST and these forecasts came back wit a time of 1900 PST - I wonder why?
+- 'hourly_forecast' returns 10 days, with a FCTTIME tag for every hour of every day.
+'''
 def wxfinished():
     global wxreply, wxdata
     global wxicon, temper, wxdesc, press, humidity
     global wind, wind2, wdate, bottom, forecast
-    global wxicon2, temper2, wxdesc
+    global wxicon2, temper2, wxdesc2
 
     wxstr = str(wxreply.readAll())
+    if not wxstr:
+        return
     wxdata = json.loads(wxstr)
+    if False:
+        # GDN: I wonder what's in there? Let's write to file and find out.
+        bugFile = open('debug.log','w')
+        debugPrint(bugFile,wxstr)
+        bugFile.close()
     f = wxdata['current_observation']
-    iconurl = f['icon_url']
-    icp = ''
-    if (re.search('/nt_', iconurl)):
-        icp = 'n_'
-    wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + icp + f['icon'] + ".png")
-    wxicon.setPixmap(wxiconpixmap.scaled(
-        wxicon.width(), wxicon.height(), Qt.IgnoreAspectRatio,
-        Qt.SmoothTransformation))
-    wxicon2.setPixmap(wxiconpixmap.scaled(
-        wxicon.width(),
-        wxicon.height(),
-        Qt.IgnoreAspectRatio,
-        Qt.SmoothTransformation))
-    wxdesc.setText(f['weather'])
-    wxdesc2.setText(f['weather'])
-
-    if Config.metric:
-        temper.setText(str(f['temp_c']) + u'°C')
-        temper2.setText(str(f['temp_c']) + u'°C')
-        press.setText(Config.LPressure +
-                      f['pressure_mb'] + ' ' + f['pressure_trend'])
-        humidity.setText(Config.LHumidity + f['relative_humidity'])
-        wd = f['wind_dir']
-        if Config.wind_degrees:
-            wd = str(f['wind_degrees']) + u'°'
-        wind.setText(Config.LWind +
-                     wd + ' ' +
-                     str(f['wind_kph']) +
-                     Config.Lgusting +
-                     str(f['wind_gust_kph']))
-        wind2.setText(Config.LFeelslike + str(f['feelslike_c']))
-        wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
-            int(f['local_epoch']))) +
-            Config.LPrecip1hr + f['precip_1hr_metric'] + 'mm ' +
-            Config.LToday + f['precip_today_metric'] + 'mm')
-    else:
-        temper.setText(str(f['temp_f']) + u'°F')
-        temper2.setText(str(f['temp_f']) + u'°F')
-        press.setText(Config.LPressure +
-                      f['pressure_in'] + ' ' + f['pressure_trend'])
-        humidity.setText(Config.LHumidity + f['relative_humidity'])
-        wd = f['wind_dir']
-        if Config.wind_degrees:
-            wd = str(f['wind_degrees']) + u'°'
-        wind.setText(Config.LWind + wd + ' ' +
-                     str(f['wind_mph']) + Config.Lgusting +
-                     str(f['wind_gust_mph']))
-        wind2.setText(Config.LFeelslike + str(f['feelslike_f']))
-        wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
-            int(f['local_epoch']))) +
-            Config.LPrecip1hr + f['precip_1hr_in'] + 'in ' +
-            Config.LToday + f['precip_today_in'] + 'in')
+    currObs = CurrentObs(f)
+    currObsDispSmall.fill_obs(currObs)
+    currObsDispBig.fill_obs(currObs)
 
     bottom.setText(Config.LSunRise +
                    wxdata['sun_phase']['sunrise']['hour'] + ':' +
@@ -234,95 +734,80 @@ def wxfinished():
                    Config.LMoonPhase +
                    wxdata['moon_phase']['phaseofMoon']
                    )
+    
+    if True:
+        updateFcstDisp()
+    else:
+        # Fill first few boxes with today forecasts
+        for i in range(0, numHourly):
+            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
+            fcstDisp = forecast[i]
+            hourly = FcstHourlyData(f)
+            fcstDisp.fill_hourly_fcst_box(hourly)
 
-    for i in range(0, 3):
-        f = wxdata['hourly_forecast'][i * 3 + 2]
-        fl = forecast[i]
-        iconurl = f['icon_url']
-        icp = ''
-        if (re.search('/nt_', iconurl)):
-            icp = 'n_'
-        icon = fl.findChild(QtGui.QLabel, "icon")
-        wxiconpixmap = QtGui.QPixmap(
-            Config.icons + "/" + icp + f['icon'] + ".png")
-        icon.setPixmap(wxiconpixmap.scaled(
-            icon.width(),
-            icon.height(),
-            Qt.IgnoreAspectRatio,
-            Qt.SmoothTransformation))
-        wx = fl.findChild(QtGui.QLabel, "wx")
-        wx.setText(f['condition'])
-        day = fl.findChild(QtGui.QLabel, "day")
-        day.setText(f['FCTTIME']['weekday_name'] + ' ' + f['FCTTIME']['civil'])
-        wx2 = fl.findChild(QtGui.QLabel, "wx2")
-        s = ''
-        if float(f['pop']) > 0.0:
-            s += f['pop'] + '% '
-        if Config.metric:
-            if float(f['snow']['metric']) > 0.0:
-                s += Config.LSnow + f['snow']['metric'] + 'mm '
-            else:
-                if float(f['qpf']['metric']) > 0.0:
-                    s += Config.LRain + f['qpf']['metric'] + 'mm '
-            s += f['temp']['metric'] + u'°C'
-        else:
-            if float(f['snow']['english']) > 0.0:
-                s += Config.LSnow + f['snow']['english'] + 'in '
-            else:
-                if float(f['qpf']['english']) > 0.0:
-                    s += Config.LRain + f['qpf']['english'] + 'in '
-            s += f['temp']['english'] + u'°F'
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i+numHourly]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
 
-        wx2.setText(s)
+def updateFcstDisp():
+    '''
+    Called by a mouse click somewhere.
+    Will display either mix of hourly and daily forecasts or only daily forecasts.
+    '''
+    global wxdata, onlyDaily, numDaily, numHourly
+    if onlyDaily:
+        numDaily = maxDailyDisp
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
+    else:
+        numDaily = numDailyDisp
+        # Fill first few boxes with today forecasts
+        for i in range(0, numHourly):
+            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
+            fcstDisp = forecast[i]
+            hourly = FcstHourlyData(f)
+            fcstDisp.fill_hourly_fcst_box(hourly)
 
-    for i in range(3, 9):
-        f = wxdata['forecast']['simpleforecast']['forecastday'][i - 3]
-        fl = forecast[i]
-        icon = fl.findChild(QtGui.QLabel, "icon")
-        wxiconpixmap = QtGui.QPixmap(Config.icons + "/" + f['icon'] + ".png")
-        icon.setPixmap(wxiconpixmap.scaled(
-            icon.width(),
-            icon.height(),
-            Qt.IgnoreAspectRatio,
-            Qt.SmoothTransformation))
-        wx = fl.findChild(QtGui.QLabel, "wx")
-        wx.setText(f['conditions'])
-        day = fl.findChild(QtGui.QLabel, "day")
-        day.setText(f['date']['weekday'])
-        wx2 = fl.findChild(QtGui.QLabel, "wx2")
-        s = ''
-        if float(f['pop']) > 0.0:
-            s += str(f['pop']) + '% '
-        if Config.metric:
-            if float(f['snow_allday']['cm']) > 0.0:
-                s += Config.LSnow + str(f['snow_allday']['cm']) + 'cm '
-            else:
-                if float(f['qpf_allday']['mm']) > 0.0:
-                    s += Config.LRain + str(f['qpf_allday']['mm']) + 'mm '
-            s += str(f['high']['celsius']) + '/' + \
-                str(f['low']['celsius']) + u'°C'
-        else:
-            if float(f['snow_allday']['in']) > 0.0:
-                s += Config.LSnow + str(f['snow_allday']['in']) + 'in '
-            else:
-                if float(f['qpf_allday']['in']) > 0.0:
-                    s += Config.LRain + str(f['qpf_allday']['in']) + 'in '
-            s += str(f['high']['fahrenheit']) + '/' + \
-                str(f['low']['fahrenheit']) + u'°F'
-        wx2.setText(s)
-
-
+        # Fill next boxes with future daily forecasts
+        for i in range(0, numDaily):
+            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            fcstDisp = forecast[i+numHourly]
+            daily = FcstDailyData(f)
+            fcstDisp.fill_daily_fcst_box(daily)
+    
 def getwx():
+    '''
+    Get weather forecasts from Weather Underground.
+    Returns a big JSON blob.
+    Calls wxfinished when ready.
+    '''
+    # GDN: apparently wunderground API can simply fetch both hourly and 10 day
+    # forecast in one call.
     global wxurl
     global wxreply
-    print "getting current and forecast:" + time.ctime()
+    logger.info("getting current and forecast:" + time.ctime())
+    # Refer to wunderground API docs: https://www.wunderground.com/weather/api/d/docs?d=data/forecast10day
+    # Each of the queries returns a lot of JSON. I'm going to list the expected returns.
+    '''
+    conditions: current_observation + <details>
+    astronomy: moon_phase, sunrise, sunset
+    hourly10day: hourly_forecast:FCTTIME + <various forecast values>
+    forecast10day: forecast:txt_forecast:forecastday and forecast:simpleforecast:forecastday
+    '''
     wxurl = Config.wuprefix + ApiKeys.wuapi + \
         '/conditions/astronomy/hourly10day/forecast10day/lang:' + \
         Config.wuLanguage + '/q/'
     wxurl += str(Config.wulocation.lat) + ',' + \
         str(Config.wulocation.lng) + '.json'
     wxurl += '?r=' + str(random.random())
-    print wxurl
+    logger.debug('wxurl='+wxurl)
     r = QUrl(wxurl)
     r = QNetworkRequest(r)
     wxreply = manager.get(r)
@@ -352,18 +837,18 @@ def qtstart():
     objradar3.start(Config.radar_refresh * 60)
     objradar4.start(Config.radar_refresh * 60)
 
+    # Clock timer. Whenever the timer runs out, call 'tick' function
     ctimer = QtCore.QTimer()
     ctimer.timeout.connect(tick)
-    ctimer.start(1000)
+    ctimer.start(1000)  # 1000 ms
 
     wxtimer = QtCore.QTimer()
     wxtimer.timeout.connect(getallwx)
-    wxtimer.start(1000 * Config.weather_refresh *
-                  60 + random.uniform(1000, 10000))
+    wxtimer.start(1000 * 60 * Config.weather_refresh + random.uniform(1000, 10000))
 
     temptimer = QtCore.QTimer()
     temptimer.timeout.connect(gettemp)
-    temptimer.start(1000 * 10 * 60 + random.uniform(1000, 10000))
+    temptimer.start(1000 * 60 * Config.home_refresh + random.uniform(1000, 10000))
 
 
 class Radar(QtGui.QLabel):
@@ -379,10 +864,10 @@ class Radar(QtGui.QLabel):
         except KeyError:
             pass
         self.baseurl = self.mapurl(radar, rect, False)
-        print "google map base url: " + self.baseurl
+        logger.debug("google map base url: " + self.baseurl)
         self.mkurl = self.mapurl(radar, rect, True)
         self.wxurl = self.radarurl(radar, rect)
-        print "radar url: " + self.wxurl
+        logger.debug("radar url: " + self.wxurl)
         QtGui.QLabel.__init__(self, parent)
         self.interval = Config.radar_refresh * 60
         self.lastwx = 0
@@ -482,7 +967,7 @@ class Radar(QtGui.QLabel):
         self.basepixmap.loadFromData(self.basereply.readAll())
         if self.basepixmap.size() != self.rect.size():
             self.basepixmap = self.basepixmap.scaled(self.rect.size(),
-                                                     Qt.KeepAspectRatio,
+                                                     iconAspect,
                                                      Qt.SmoothTransformation)
         if self.satellite:
             p = QPixmap(self.basepixmap.size())
@@ -505,7 +990,7 @@ class Radar(QtGui.QLabel):
         if self.mkpixmap.size() != self.rect.size():
             self.mkpixmap = self.mkpixmap.scaled(
                 self.rect.size(),
-                Qt.KeepAspectRatio,
+                iconAspect,
                 Qt.SmoothTransformation)
         br = QBrush(QColor(Config.dimcolor))
         painter = QPainter()
@@ -517,23 +1002,22 @@ class Radar(QtGui.QLabel):
 
     def wxfinished(self):
         if self.wxreply.error() != QNetworkReply.NoError:
-            print "get radar error " + self.myname + ":" + \
-                str(self.wxreply.error())
+            logger.error("get radar error " + self.myname + ":" + str(self.wxreply.error()))
             self.lastwx = 0
             return
-        print "radar map received:" + self.myname + ":" + time.ctime()
+        logger.debug("radar map received:" + self.myname + ":" + time.ctime())
         self.wxmovie.stop()
         self.wxdata = QtCore.QByteArray(self.wxreply.readAll())
         self.wxbuff = QtCore.QBuffer(self.wxdata)
         self.wxbuff.open(QtCore.QIODevice.ReadOnly)
         mov = QMovie(self.wxbuff, 'GIF')
-        print "radar map frame count:" + self.myname + ":" + \
-            str(mov.frameCount()) + ":r" + str(self.retries)
+        logger.debug("radar map frame count:" + self.myname + ":" + \
+            str(mov.frameCount()) + ":r" + str(self.retries))
         if mov.frameCount() > 2:
             self.lastwx = time.time()
             self.retries = 0
         else:
-            # radar image retreval failed
+            # radar image retrieval failed
             if self.retries > 3:
                 # give up, last successful animation stays.
                 # the next normal radar_refresh time (default 10min) will apply
@@ -563,7 +1047,7 @@ class Radar(QtGui.QLabel):
             lastapiget = time.time()
         else:
             i = lastapiget - time.time()
-        print "get radar api call spacing oneshot get i=" + str(i)
+        logger.debug("get radar api call spacing oneshot get i=" + str(i))
         QtCore.QTimer.singleShot(i * 1000, self.getwx2)
 
     def getwx2(self):
@@ -573,7 +1057,7 @@ class Radar(QtGui.QLabel):
                 return
         except Exception:
             pass
-        print "getting radar map " + self.myname + ":" + time.ctime()
+        logger.debug("getting radar map " + self.myname + ":" + time.ctime())
         self.wxreq = QNetworkRequest(
             QUrl(self.wxurl + '&rrrand=' + str(time.time())))
         self.wxreply = manager.get(self.wxreq)
@@ -604,7 +1088,7 @@ class Radar(QtGui.QLabel):
             self.timer, QtCore.SIGNAL("timeout()"), self.getwx)
 
     def wxstart(self):
-        print "wxstart for " + self.myname
+        logger.debug("wxstart for " + self.myname)
         if (self.lastwx == 0 or (self.lastwx + self.interval) < time.time()):
             self.getwx()
         # random 1 to 10 seconds added to refresh interval to spread the
@@ -615,7 +1099,7 @@ class Radar(QtGui.QLabel):
         QtCore.QTimer.singleShot(1000, self.wxmovie.start)
 
     def wxstop(self):
-        print "wxstop for " + self.myname
+        logger.debug("wxstop for " + self.myname)
         self.timer.stop()
         self.wxmovie.stop()
 
@@ -630,7 +1114,12 @@ class Radar(QtGui.QLabel):
 
 
 def realquit():
-    QtGui.QApplication.exit(0)
+    if True:
+	    # causes crash in Windows
+		QtGui.QApplication.exit(0)
+    else:
+	    # but this leaves some threads hanging
+		exit()
 
 
 def myquit(a=0, b=0):
@@ -658,7 +1147,8 @@ def fixupframe(frame, onoff):
                 # print "calling wxstop on radar on ",frame.objectName()
                 child.wxstop()
 
-
+# GDN: the display has 2 frames only (4-Jan-2018).
+# mousePressEvent anywhere within myMain will call this.
 def nextframe(plusminus):
     global frames, framep
     frames[framep].setVisible(False)
@@ -707,7 +1197,7 @@ if len(sys.argv) > 1:
     configname = sys.argv[1]
 
 if not os.path.isfile(configname + ".py"):
-    print "Config file not found %s" % configname + ".py"
+    print "ERROR: Config file not found %s" % configname + ".py"
     exit(1)
 
 Config = __import__(configname)
@@ -800,9 +1290,12 @@ signal.signal(signal.SIGINT, myquit)
 w = myMain()
 if not bFullScreen:    # GDN
     # GDN
-    height = 600
-    width  = 1000
+    height = 480
+    width  = 800
     w.resize(width,height)
+# virtual app dimensions
+vWidth = 1600.0
+vHeight = 900.00
 w.setWindowTitle(os.path.basename(__file__))
 
 w.setStyleSheet("QWidget { background-color: black;}")
@@ -812,12 +1305,10 @@ w.setStyleSheet("QWidget { background-color: black;}")
 # xscale = float(width)/fullbgpixmap.width()
 # yscale = float(height)/fullbgpixmap.height()
 
-xscale = float(width) / 1440.0
-yscale = float(height) / 900.0
-#xscale = float(width) / 1600.0
+#xscale = float(width) / 1440.0
 #yscale = float(height) / 900.0
-#xscale = 1.0
-#yscale = 1.0
+xscale = float(width) / vWidth
+yscale = float(height) / vHeight
 
 frames = []
 framep = 0
@@ -825,15 +1316,31 @@ framep = 0
 frame1 = QtGui.QFrame(w)
 frame1.setObjectName("frame1")
 frame1.setGeometry(0, 0, width, height)
-frame1.setStyleSheet("#frame1 { background-color: black; border-image: url(" +
-                     Config.background + ") 0 0 0 0 stretch stretch;}")
+# 1. correct aspect ratio, but image is centered toward lower-right
+frame1_style = "background-color: black; border-image: url(%s) 0 0 0 0 repeat repeat;" %(Config.background)
+# 2. incorrect aspect, image is centered
+frame1_style = "background-color: black; border-image: url(%s);" %(Config.background)
+# 3. same as 1
+frame1_style = "background-color: black; border-image: url(%s) repeat repeat;" %(Config.background)
+# 4. same as 2
+frame1_style = "background-color: black; border-image: url(%s) 0 0 0 0;" %(Config.background)
+# 5. same as 2
+frame1_style = "background-color: black; border-image: url(%s); background-repeat: repeat-y;" %(Config.background)
+# 6. same as 2
+frame1_style = "background-color: black; border-image: url(%s); background-repeat: repeat-x;" %(Config.background)
+# 7. nope
+frame1_style = "background-color: black; border-image: url(%s); background-size: contain;" %(Config.background)
+# 8. same as 2 - if image aspect matches height-width, then all is well
+frame1_style = "background-color: black; border-image: url(%s);" %(Config.background)
+
+frame1.setStyleSheet("#frame1 {%s}" %(frame1_style))
 frames.append(frame1)
 
 frame2 = QtGui.QFrame(w)
 frame2.setObjectName("frame2")
 frame2.setGeometry(0, 0, width, height)
 frame2.setStyleSheet("#frame2 { background-color: blue; border-image: url(" +
-                     Config.background + ") 0 0 0 0 stretch stretch;}")
+                     Config.background + ") 0 0 0 0 repeat repeat;}")
 frame2.setVisible(False)
 frames.append(frame2)
 
@@ -845,6 +1352,7 @@ frames.append(frame2)
 # frame3.setVisible(False)
 # frames.append(frame3)
 
+# GDN: this draws borders around the two radar maps
 squares1 = QtGui.QFrame(frame1)
 squares1.setObjectName("squares1")
 squares1.setGeometry(0, height - yscale * 600, xscale * 340, yscale * 600)
@@ -853,13 +1361,19 @@ squares1.setStyleSheet(
     Config.squares1 +
     ") 0 0 0 0 stretch stretch;}")
 
+# GDN: this draws frames around the forecast boxes
 squares2 = QtGui.QFrame(frame1)
 squares2.setObjectName("squares2")
-squares2.setGeometry(width - xscale * 340, 0, xscale * 340, yscale * 900)
-squares2.setStyleSheet(
-    "#squares2 { background-color: transparent; border-image: url(" +
-    Config.squares2 +
-    ") 0 0 0 0 stretch stretch;}")
+# GDN: why 340? Later when the labels "lab" are created, the value of 300 is used
+squares2.setGeometry(width - xscale * 340, 0, xscale * 340, yscale * vHeight)
+if False:
+    squares2.setStyleSheet(
+        "#squares2 { background-color: transparent; border-image: url(" +
+        Config.squares2 +
+        ") 0 0 0 0 stretch stretch;}")
+else:
+    squares2.setStyleSheet(
+        "#squares2 { background-color: transparent; border:3px solid rgb(0, 255, 0);}")
 
 if not Config.digital:
     clockface = QtGui.QFrame(frame1)
@@ -922,180 +1436,32 @@ else:
     clockface.setGraphicsEffect(glow)
 
 
+# GDN: next two are radar displays in lower left that are vertically stacked
+# They are contained within frame1
 radar1rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
 
 radar2rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
 
+# GDN: next two are radar displays that occupy most of screen and are side-by-side
+# They are contained within frame2
 radar3rect = QtCore.QRect(13 * xscale, 50 * yscale, 700 * xscale, 700 * yscale)
 objradar3 = Radar(frame2, Config.radar3, radar3rect, "radar3")
 
-radar4rect = QtCore.QRect(726 * xscale, 50 * yscale,
-                          700 * xscale, 700 * yscale)
+radar4rect = QtCore.QRect(726 * xscale, 50 * yscale,700 * xscale, 700 * yscale)
 objradar4 = Radar(frame2, Config.radar4, radar4rect, "radar4")
 
+# Create the panels that display current obs in either frame1 or frame2
+currObsDispSmall = CurrentObsDisp(frame1,bSmall=True)
+currObsDispBig   = CurrentObsDisp(frame2,bSmall=False)
 
-datex = QtGui.QLabel(frame1)
-datex.setObjectName("datex")
-datex.setStyleSheet("#datex { font-family:sans-serif; color: " +
-                    Config.textcolor +
-                    "; background-color: transparent; font-size: " +
-                    str(int(50 * xscale)) +
-                    "px; " +
-                    Config.fontattr +
-                    "}")
-datex.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-datex.setGeometry(0, 0, width, 100)
+# TODO: should not have to do this
+datex = currObsDispSmall.datex
+datex2 = currObsDispBig.datex2
+datey2 = currObsDispBig.datey2
 
-datex2 = QtGui.QLabel(frame2)
-datex2.setObjectName("datex2")
-datex2.setStyleSheet("#datex2 { font-family:sans-serif; color: " +
-                     Config.textcolor +
-                     "; background-color: transparent; font-size: " +
-                     str(int(50 * xscale)) + "px; " +
-                     Config.fontattr +
-                     "}")
-datex2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-datex2.setGeometry(800 * xscale, 780 * yscale, 640 * xscale, 100)
-datey2 = QtGui.QLabel(frame2)
-datey2.setObjectName("datey2")
-datey2.setStyleSheet("#datey2 { font-family:sans-serif; color: " +
-                     Config.textcolor +
-                     "; background-color: transparent; font-size: " +
-                     str(int(50 * xscale)) +
-                     "px; " +
-                     Config.fontattr +
-                     "}")
-datey2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-datey2.setGeometry(800 * xscale, 840 * yscale, 640 * xscale, 100)
-
-ypos = -25
-wxicon = QtGui.QLabel(frame1)
-wxicon.setObjectName("wxicon")
-wxicon.setStyleSheet("#wxicon { background-color: transparent; }")
-wxicon.setGeometry(75 * xscale, ypos * yscale, 150 * xscale, 150 * yscale)
-
-wxicon2 = QtGui.QLabel(frame2)
-wxicon2.setObjectName("wxicon2")
-wxicon2.setStyleSheet("#wxicon2 { background-color: transparent; }")
-wxicon2.setGeometry(0 * xscale, 750 * yscale, 150 * xscale, 150 * yscale)
-
-ypos += 130
-wxdesc = QtGui.QLabel(frame1)
-wxdesc.setObjectName("wxdesc")
-wxdesc.setStyleSheet("#wxdesc { background-color: transparent; color: " +
-                     Config.textcolor +
-                     "; font-size: " +
-                     str(int(30 * xscale)) +
-                     "px; " +
-                     Config.fontattr +
-                     "}")
-wxdesc.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-wxdesc.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-wxdesc2 = QtGui.QLabel(frame2)
-wxdesc2.setObjectName("wxdesc2")
-wxdesc2.setStyleSheet("#wxdesc2 { background-color: transparent; color: " +
-                      Config.textcolor +
-                      "; font-size: " +
-                      str(int(50 * xscale)) +
-                      "px; " +
-                      Config.fontattr +
-                      "}")
-wxdesc2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-wxdesc2.setGeometry(400 * xscale, 800 * yscale, 400 * xscale, 100)
-
-ypos += 25
-temper = QtGui.QLabel(frame1)
-temper.setObjectName("temper")
-temper.setStyleSheet("#temper { background-color: transparent; color: " +
-                     Config.textcolor +
-                     "; font-size: " +
-                     str(int(70 * xscale)) +
-                     "px; " +
-                     Config.fontattr +
-                     "}")
-temper.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-temper.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-temper2 = QtGui.QLabel(frame2)
-temper2.setObjectName("temper2")
-temper2.setStyleSheet("#temper2 { background-color: transparent; color: " +
-                      Config.textcolor +
-                      "; font-size: " +
-                      str(int(70 * xscale)) +
-                      "px; " +
-                      Config.fontattr +
-                      "}")
-temper2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-temper2.setGeometry(125 * xscale, 780 * yscale, 300 * xscale, 100)
-
-ypos += 80
-press = QtGui.QLabel(frame1)
-press.setObjectName("press")
-press.setStyleSheet("#press { background-color: transparent; color: " +
-                    Config.textcolor +
-                    "; font-size: " +
-                    str(int(25 * xscale)) +
-                    "px; " +
-                    Config.fontattr +
-                    "}")
-press.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-press.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-ypos += 30
-humidity = QtGui.QLabel(frame1)
-humidity.setObjectName("humidity")
-humidity.setStyleSheet("#humidity { background-color: transparent; color: " +
-                       Config.textcolor +
-                       "; font-size: " +
-                       str(int(25 * xscale)) +
-                       "px; " +
-                       Config.fontattr +
-                       "}")
-humidity.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-humidity.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-ypos += 30
-wind = QtGui.QLabel(frame1)
-wind.setObjectName("wind")
-wind.setStyleSheet("#wind { background-color: transparent; color: " +
-                   Config.textcolor +
-                   "; font-size: " +
-                   str(int(20 * xscale)) +
-                   "px; " +
-                   Config.fontattr +
-                   "}")
-wind.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-wind.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-ypos += 20
-wind2 = QtGui.QLabel(frame1)
-wind2.setObjectName("wind2")
-wind2.setStyleSheet("#wind2 { background-color: transparent; color: " +
-                    Config.textcolor +
-                    "; font-size: " +
-                    str(int(20 * xscale)) +
-                    "px; " +
-                    Config.fontattr +
-                    "}")
-wind2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-wind2.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
-ypos += 20
-wdate = QtGui.QLabel(frame1)
-wdate.setObjectName("wdate")
-wdate.setStyleSheet("#wdate { background-color: transparent; color: " +
-                    Config.textcolor +
-                    "; font-size: " +
-                    str(int(15 * xscale)) +
-                    "px; " +
-                    Config.fontattr +
-                    "}")
-wdate.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-wdate.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
-
+# This is for display of sunrise and sunset
 bottom = QtGui.QLabel(frame1)
 bottom.setObjectName("bottom")
 bottom.setStyleSheet("#bottom { font-family:sans-serif; color: " +
@@ -1108,60 +1474,26 @@ bottom.setStyleSheet("#bottom { font-family:sans-serif; color: " +
 bottom.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 bottom.setGeometry(0, height - 50, width, 50)
 
-temp = QtGui.QLabel(frame1)
-temp.setObjectName("temp")
-temp.setStyleSheet("#temp { font-family:sans-serif; color: " +
+# This is display of your household temperature from a network connection
+tempHouse = QtGui.QLabel(frame1)
+tempHouse.setObjectName("temp")
+tempHouse.setStyleSheet("#temp { font-family:sans-serif; color: " +
                    Config.textcolor +
                    "; background-color: transparent; font-size: " +
                    str(int(30 * xscale)) +
                    "px; " +
                    Config.fontattr +
                    "}")
-temp.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-temp.setGeometry(0, height - 100, width, 50)
+tempHouse.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+tempHouse.setGeometry(0, height - 80, width, 50)
 
-# Create boxes on right side that contain forecasts for 9 time periods.
-# Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
-# I guess these regions are later filled with data.
+# Create array of boxes to display hourly and daily forecasts.
+# But the boxes are just placeholders for dynamically updated forecasts.
 forecast = []
-for i in range(0, 9):
-    lab = QtGui.QLabel(frame1)
-    lab.setObjectName("forecast" + str(i))
-    lab.setStyleSheet("QWidget { background-color: transparent; color: " +
-                      Config.textcolor +
-                      "; font-size: " +
-                      str(int(20 * xscale)) +
-                      "px; " +
-                      Config.fontattr +
-                      "}")
-#    lab.setGeometry(1137 * xscale, i * 100 * yscale,
-#                    300 * xscale, 100 * yscale)
-    lab.setGeometry(width-(300*xscale)-3, i * 100 * yscale,
-                    300 * xscale, 100 * yscale)
-
-    icon = QtGui.QLabel(lab)
-    icon.setStyleSheet("#icon { background-color: transparent; }")
-    icon.setGeometry(0, 0, 100 * xscale, 100 * yscale)
-    icon.setObjectName("icon")
-
-    wx = QtGui.QLabel(lab)
-    wx.setStyleSheet("#wx { background-color: transparent; }")
-    wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
-    wx.setObjectName("wx")
-
-    wx2 = QtGui.QLabel(lab)
-    wx2.setStyleSheet("#wx2 { background-color: transparent; }")
-    wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, 100 * yscale)
-    wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-    wx2.setWordWrap(True)
-    wx2.setObjectName("wx2")
-
-    day = QtGui.QLabel(lab)
-    day.setStyleSheet("#day { background-color: transparent; }")
-    day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
-    day.setAlignment(Qt.AlignRight | Qt.AlignBottom)
-    day.setObjectName("day")
-
+n_forecast = numHourly+numDaily
+ht_forecast = float(vHeight) / n_forecast
+for i in range(0, numHourly+numDaily):
+    lab = FcstDisp(frame1,i)
     forecast.append(lab)
 
 manager = QtNetwork.QNetworkAccessManager()
@@ -1181,4 +1513,5 @@ w.show()
 if bFullScreen:     # GDN
     w.showFullScreen()
 
-sys.exit(app.exec_())
+#sys.exit(app.exec_())
+exit(app.exec_())

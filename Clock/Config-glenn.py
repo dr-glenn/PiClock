@@ -11,7 +11,8 @@ wuprefix = 'http://api.wunderground.com/api/'
 wulocation = LatLng(primary_coordinates[0], primary_coordinates[1])
 primary_location = LatLng(primary_coordinates[0], primary_coordinates[1])
 noaastream = 'http://audioplayer.wunderground.com:80/tim273/edina'
-background = 'images/clockbackground-kevin.png'
+#background = 'images/eclipse-800-480.png'
+background = ''
 squares1 = 'images/squares1-kevin.png'
 squares2 = 'images/squares2-kevin.png'
 icons = 'icons-lightblue'
@@ -42,6 +43,7 @@ digitalsize = 200
 metric = 0  # 0 = English, 1 = Metric
 radar_refresh = 10      # minutes
 weather_refresh = 30    # minutes
+home_refresh = 1        # temp and humidity at home
 # Wind in degrees instead of cardinal 0 = cardinal, 1 = degrees
 wind_degrees = 0
 # Depreciated: use 'satellite' key in radar section, on a per radar basis
