@@ -11,16 +11,16 @@ import locale
 import random
 import re
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler,TimedRotatingFileHandler
 #logging.basicConfig(filename='piclock.log', level=logging.WARNING)
-handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+#handler = RotatingFileHandler('piclock.log', maxBytes=50000, backupCount=3)
+handler = TimedRotatingFileHandler('piclock.log', when='midnight', interval=1, backupCount=3)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 handler.setFormatter(formatter)
 defLogger = logging.getLogger('')
 defLogger.addHandler(handler)
 defLogger.setLevel(logging.INFO)
 logger = logging.getLogger('piclock')
-#logger.setLevel(logging.INFO)
 
 from PyQt4 import QtGui, QtCore, QtNetwork
 from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
@@ -33,6 +33,8 @@ from subprocess import Popen
 sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
+import mqtt_fetch
+isMqttRun = False
 
 intHourlyData = 3   # interval in hours between hourly data to display
 numHourlyData = 3   # number of hourly data records to store
@@ -62,6 +64,7 @@ class CurrentObsDisp(QtGui.QLabel):
         self.small = bSmall
         frame = parent
         if bSmall:
+            # Page with clock in center
             # datex displays "Thursday March 15th 2018".
             # It is large font, positioned at top center of screen
             self.datex = QtGui.QLabel(frame)
@@ -77,6 +80,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.datex.setGeometry(0, 0, width, 100)
 
             # wxicon - a large weather icon (150x150) near top-left
+            # TODO: awful - what is current value of ypos? Should be passed to init
             ypos = -25
             self.wxicon = QtGui.QLabel(frame)
             self.wxicon.setObjectName("wxicon")
@@ -84,6 +88,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.wxicon.setGeometry(75 * xscale, ypos * yscale, 150 * xscale, 150 * yscale)
             #self.wxicon.setGeometry(75 * xscale, ypos * yscale, 100 * xscale, 100 * yscale)
 
+            # Text description of weather, e.g., "Sunny"
             # with icon size=150, ypos+=130
             ypos += 130
             # with icon size=100, ypos+=80
@@ -100,6 +105,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.wxdesc.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
             self.wxdesc.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
+            # Current temperature from Wunderground
             ypos += 25
             self.temper = QtGui.QLabel(frame)
             self.temper.setObjectName("temper")
@@ -113,6 +119,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.temper.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
             self.temper.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
+            # Current pressure from Wunderground
             ypos += 60
             self.press = QtGui.QLabel(frame)
             self.press.setObjectName("press")
@@ -126,6 +133,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.press.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
             self.press.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
+            # Current humidity from Wunderground
             ypos += 30
             self.humidity = QtGui.QLabel(frame)
             self.humidity.setObjectName("humidity")
@@ -139,6 +147,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.humidity.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
             self.humidity.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
+            # Current winds: direction, speed, gust speed
             ypos += 30
             self.wind = QtGui.QLabel(frame)
             self.wind.setObjectName("wind")
@@ -502,12 +511,15 @@ def tick():
         datex.setText(ds)
         datex2.setText(ds)
 
-import mqtt_fetch
-mqtt_fetch.run_as_service()
+#mqtt_fetch.run_as_service()
 def getMqtt():
     '''
     Fetch environmental data using MQTT.
     '''
+    global isMqttRun
+    if not isMqttRun:
+        mqtt_fetch.run_as_service()
+        isMqttRun = True
     if False:
         temp = 70.1
         humid = 50.5
@@ -526,7 +538,7 @@ def getMqtt():
 def tempfinished():
     global tempreply, tempHouse
     t,h = getMqtt()
-    tempHouse.setText('Temp=%.1f, Hum=%d' %(t,int(h))) # GDN: just testing
+    tempHouse.setText('Temp=%.1f, Hum=%d%%' %(t,int(h))) # GDN: just testing
     '''
     if tempreply.error() != QNetworkReply.NoError:
         return
@@ -553,7 +565,6 @@ def tempfinished():
                     s += ' ' + tk + ':' + tempdata['temps'][tk]
     tempHouse.setText(s)
     '''
-
 
 def gettemp():
     '''
@@ -827,8 +838,9 @@ def qtstart():
 
     objradar1.start(Config.radar_refresh * 60)
     objradar1.wxstart()
-    objradar2.start(Config.radar_refresh * 60)
-    objradar2.wxstart()
+    if objradar2:
+        objradar2.start(Config.radar_refresh * 60)
+        objradar2.wxstart()
     objradar3.start(Config.radar_refresh * 60)
     objradar4.start(Config.radar_refresh * 60)
 
@@ -870,12 +882,21 @@ class Radar(QtGui.QLabel):
 
         self.setObjectName("radar")
         self.setGeometry(rect)
-        self.setStyleSheet("#radar { background-color: grey; }")
+        #self.setStyleSheet("#radar { background-color: grey; }")
+        # next: setting margin results in a grey border and the inside image spills past the margin
+        #self.setStyleSheet("#radar { background-color: grey; border-width:3px; border-color: solid rgb(255, 255, 0); margin: 3px;}")
+        # next: without margin, I get no border at all
+        #self.setStyleSheet("#radar { background-color: grey; border-width:3px; border-color: solid rgb(255, 255, 0);}")
+        # next: with border-style I get side borders, but not top and bottom
+        self.setStyleSheet("#radar { background-color: transparent; border-width:3px; border-color: solid rgb(255, 255, 0); border-style: solid;}")
         self.setAlignment(Qt.AlignCenter)
 
         self.wwx = QtGui.QLabel(self)
         self.wwx.setObjectName("wx")
-        self.wwx.setStyleSheet("#wx { background-color: transparent; }")
+        # use padding or margin?
+        #self.wwx.setStyleSheet("#wx { background-color: transparent; padding:4px; border-width:3px; border-color: solid rgb(255, 255, 0); border-style: outset;}")
+        #self.wwx.setStyleSheet("#wx { background-color: transparent; border-width:3px; border-color: solid rgb(255, 255, 0); border-style: outset;}")
+        self.wwx.setStyleSheet("#wx { background-color: transparent;}")
         self.wwx.setGeometry(0, 0, rect.width(), rect.height())
 
         self.wmk = QtGui.QLabel(self)
@@ -937,7 +958,7 @@ class Radar(QtGui.QLabel):
                     '&width=' + str(rect.width()) +
                     '&height=' + str(rect.height()) +
                     '&newmaps=0&reproj.automerc=1&num=5&delay=25' +
-                    '&timelabel=1&timelabel.y=10&smooth=1&key=sat_ir4_bottom'
+                    '&timelabel=1&timelabel.y=20&smooth=1&key=sat_ir4_bottom'
                     )
         else:
             return (Config.wuprefix +
@@ -951,7 +972,7 @@ class Radar(QtGui.QLabel):
                     '&width=' + str(rect.width()) +
                     '&height=' + str(rect.height()) +
                     '&newmaps=0&reproj.automerc=1&num=5&delay=25' +
-                    '&timelabel=1&timelabel.y=10&rainsnow=1&smooth=1' +
+                    '&timelabel=1&timelabel.y=20&rainsnow=1&smooth=1' +
                     '&radar_bitmap=1&xnoclutter=1&xnoclutter_mask=1&cors=1'
                     )
 
@@ -1110,11 +1131,11 @@ class Radar(QtGui.QLabel):
 
 def realquit():
     if True:
-	    # causes crash in Windows
-		QtGui.QApplication.exit(0)
+        # causes crash in Windows
+        QtGui.QApplication.exit(0)
     else:
-	    # but this leaves some threads hanging
-		exit()
+        # but this leaves some threads hanging
+        exit()
 
 
 def myquit(a=0, b=0):
@@ -1122,7 +1143,8 @@ def myquit(a=0, b=0):
     global ctimer, wtimer, temptimer
 
     objradar1.stop()
-    objradar2.stop()
+    if objradar2:
+        objradar2.stop()
     objradar3.stop()
     objradar4.stop()
     ctimer.stop()
@@ -1192,7 +1214,7 @@ if len(sys.argv) > 1:
     configname = sys.argv[1]
 
 if not os.path.isfile(configname + ".py"):
-    print "ERROR: Config file not found %s" % configname + ".py"
+    print("ERROR: Config file not found %s" % configname + ".py")
     exit(1)
 
 Config = __import__(configname)
@@ -1348,15 +1370,29 @@ frames.append(frame2)
 # frames.append(frame3)
 
 # GDN: this draws borders around the two radar maps
-squares1 = QtGui.QFrame(frame1)
-squares1.setObjectName("squares1")
-squares1.setGeometry(0, height - yscale * 600, xscale * 340, yscale * 600)
-squares1.setStyleSheet(
-    "#squares1 { background-color: transparent; border-image: url(" +
-    Config.squares1 +
-    ") 0 0 0 0 stretch stretch;}")
+bShowBothRadar = False
+if bShowBothRadar:
+    squares1 = QtGui.QFrame(frame1)
+    squares1.setObjectName("squares1")
+    squares1.setGeometry(0, height - yscale * 600, xscale * 340, yscale * 600)
+    squares1.setStyleSheet(
+        "#squares1 { background-color: transparent; border-image: url(" +
+        Config.squares1 + ") 0 0 0 0 stretch stretch;}")
+else:
+    pass
+    # GDN: absolutely don't need "squares1" QFrame. Instead just draw a border
+    # around the object that is the Radar display.
+    # Or I guess we could put the Radar inside "squares1"
+    '''
+    # It's a green frame
+    squares1 = QtGui.QFrame(frame1)
+    squares1.setObjectName("squares1")
+    squares1.setGeometry(0, height - yscale * 282, xscale * 310, yscale * 282)
+    squares1.setStyleSheet(
+        "#squares1 { background-color: transparent; border:3px solid rgb(0, 255, 0);}")
+    '''
 
-# GDN: this draws frames around the forecast boxes
+# GDN: this draws frame around all the forecast boxes
 squares2 = QtGui.QFrame(frame1)
 squares2.setObjectName("squares2")
 # GDN: why 340? Later when the labels "lab" are created, the value of 300 is used
@@ -1367,6 +1403,7 @@ if False:
         Config.squares2 +
         ") 0 0 0 0 stretch stretch;}")
 else:
+    # It's a green frame
     squares2.setStyleSheet(
         "#squares2 { background-color: transparent; border:3px solid rgb(0, 255, 0);}")
 
@@ -1433,11 +1470,14 @@ else:
 
 # GDN: next two are radar displays in lower left that are vertically stacked
 # They are contained within frame1
-radar1rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
+# This is regional display:
+radar1rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
-
-radar2rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
-objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
+objradar2 = None
+if bShowBothRadar:
+    # This is local display:
+    radar2rect = QtCore.QRect(3 * xscale, 344 * yscale, 300 * xscale, 275 * yscale)
+    objradar2 = Radar(frame1, Config.radar2, radar2rect, "radar2")
 
 # GDN: next two are radar displays that occupy most of screen and are side-by-side
 # They are contained within frame2
@@ -1462,7 +1502,7 @@ bottom.setObjectName("bottom")
 bottom.setStyleSheet("#bottom { font-family:sans-serif; color: " +
                      Config.textcolor +
                      "; background-color: transparent; font-size: " +
-                     str(int(30 * xscale)) +
+                     str(int(40 * xscale)) +
                      "px; " +
                      Config.fontattr +
                      "}")
@@ -1475,7 +1515,7 @@ tempHouse.setObjectName("temp")
 tempHouse.setStyleSheet("#temp { font-family:sans-serif; color: " +
                    Config.textcolor +
                    "; background-color: transparent; font-size: " +
-                   str(int(30 * xscale)) +
+                   str(int(50 * xscale)) +
                    "px; " +
                    Config.fontattr +
                    "}")

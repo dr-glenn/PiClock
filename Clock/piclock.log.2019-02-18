@@ -1,0 +1,180 @@
+2019-02-18 19:21:59,267 - piclock - INFO : getting current and forecast:Mon Feb 18 19:21:59 2019
+2019-02-18 19:21:59,408 - mqtt - INFO : Wait for connect
+2019-02-18 19:21:59,831 - mqtt - INFO : connected OK
+2019-02-18 19:21:59,831 - mqtt - INFO : Start Main loop
+2019-02-18 19:21:59,908 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 19:22:00,003 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 19:22:29,036 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:22:29,157 - mqtt - INFO : received message =rel_hum,p=47.7000007629
+2019-02-18 19:23:00,717 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:23:00,842 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:23:32,292 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:23:32,385 - mqtt - INFO : received message =rel_hum,p=47.7999992371
+2019-02-18 19:24:04,000 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:24:04,125 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:24:35,589 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:24:35,667 - mqtt - INFO : received message =rel_hum,p=47.7999992371
+2019-02-18 19:25:07,282 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:25:07,391 - mqtt - INFO : received message =rel_hum,p=47.7999992371
+2019-02-18 19:25:38,865 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:25:38,944 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:26:10,562 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:26:10,687 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:26:42,562 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:26:42,562 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:27:13,838 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:27:13,963 - mqtt - INFO : received message =rel_hum,p=48.0
+2019-02-18 19:27:45,421 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:27:45,516 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:27:51,384 - piclock - INFO : getting current and forecast:Mon Feb 18 19:27:51 2019
+2019-02-18 19:27:51,493 - mqtt - INFO : Wait for connect
+2019-02-18 19:27:51,588 - mqtt - INFO : connected OK
+2019-02-18 19:27:51,588 - mqtt - INFO : Start Main loop
+2019-02-18 19:27:51,681 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 19:27:51,759 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 19:28:17,114 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:28:17,234 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:28:48,703 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:28:48,780 - mqtt - INFO : received message =rel_hum,p=47.9000015259
+2019-02-18 19:29:20,687 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:29:20,812 - mqtt - INFO : received message =rel_hum,p=48.0
+2019-02-18 19:29:52,313 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:29:52,391 - mqtt - INFO : received message =rel_hum,p=48.0
+2019-02-18 19:30:24,115 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:30:24,233 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:30:55,657 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:30:55,736 - mqtt - INFO : received message =rel_hum,p=48.0
+2019-02-18 19:31:27,375 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:31:27,492 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:31:58,937 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:31:59,032 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:32:33,171 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:32:33,296 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:33:04,875 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:33:05,000 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:33:36,453 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:33:36,546 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:34:08,155 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:34:08,280 - mqtt - INFO : received message =rel_hum,p=48.0999984741
+2019-02-18 19:34:39,734 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:34:39,828 - mqtt - INFO : received message =rel_hum,p=48.2000007629
+2019-02-18 19:35:11,423 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:35:11,548 - mqtt - INFO : received message =rel_hum,p=48.2000007629
+2019-02-18 19:35:45,552 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:35:45,630 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:36:17,280 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:36:17,405 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:36:48,865 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:36:48,944 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:37:02,553 - piclock - INFO : getting current and forecast:Mon Feb 18 19:37:02 2019
+2019-02-18 19:37:02,726 - mqtt - INFO : Wait for connect
+2019-02-18 19:37:02,803 - mqtt - INFO : connected OK
+2019-02-18 19:37:02,803 - mqtt - INFO : Start Main loop
+2019-02-18 19:37:02,881 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 19:37:02,976 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 19:37:20,546 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:37:20,687 - mqtt - INFO : received message =rel_hum,p=48.4000015259
+2019-02-18 19:37:49,609 - piclock - INFO : getting current and forecast:Mon Feb 18 19:37:49 2019
+2019-02-18 19:37:49,703 - mqtt - INFO : Wait for connect
+2019-02-18 19:37:49,796 - mqtt - INFO : connected OK
+2019-02-18 19:37:49,796 - mqtt - INFO : Start Main loop
+2019-02-18 19:37:49,891 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 19:37:49,969 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 19:37:52,142 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:37:52,236 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:38:23,828 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:38:23,953 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:38:55,421 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:38:55,500 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:39:27,094 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:39:27,203 - mqtt - INFO : received message =rel_hum,p=48.2000007629
+2019-02-18 19:39:58,716 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:39:58,793 - mqtt - INFO : received message =rel_hum,p=48.2000007629
+2019-02-18 19:40:30,390 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:40:30,515 - mqtt - INFO : received message =rel_hum,p=48.2000007629
+2019-02-18 19:41:04,500 - mqtt - INFO : received message =temp,c=20.7999992371
+2019-02-18 19:41:04,578 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 19:41:35,160 - piclock - INFO : getting current and forecast:Mon Feb 18 19:41:35 2019
+2019-02-18 19:41:35,269 - mqtt - INFO : Wait for connect
+2019-02-18 19:41:35,362 - mqtt - INFO : connected OK
+2019-02-18 19:41:35,362 - mqtt - INFO : Start Main loop
+2019-02-18 19:41:35,457 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 19:41:35,549 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 19:41:36,140 - mqtt - INFO : received message =temp,c=20.7000007629
+2019-02-18 19:41:36,265 - mqtt - INFO : received message =rel_hum,p=48.2999992371
+2019-02-18 21:36:04,296 - piclock - INFO : getting current and forecast:Mon Feb 18 21:36:04 2019
+2019-02-18 21:36:04,421 - mqtt - INFO : Wait for connect
+2019-02-18 21:36:04,516 - mqtt - INFO : connected OK
+2019-02-18 21:36:04,516 - mqtt - INFO : Start Main loop
+2019-02-18 21:36:04,609 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:36:04,687 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:36:08,813 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:36:08,937 - mqtt - INFO : received message =rel_hum,p=46.2000007629
+2019-02-18 21:36:40,405 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:36:40,484 - mqtt - INFO : received message =rel_hum,p=46.2999992371
+2019-02-18 21:37:12,102 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:37:12,230 - mqtt - INFO : received message =rel_hum,p=46.5
+2019-02-18 21:37:43,684 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:37:43,762 - mqtt - INFO : received message =rel_hum,p=46.5
+2019-02-18 21:38:17,905 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:38:18,030 - mqtt - INFO : received message =rel_hum,p=46.5999984741
+2019-02-18 21:38:49,516 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:38:49,594 - mqtt - INFO : received message =rel_hum,p=46.5999984741
+2019-02-18 21:39:21,203 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:39:21,328 - mqtt - INFO : received message =rel_hum,p=46.7000007629
+2019-02-18 21:39:52,792 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:39:52,871 - mqtt - INFO : received message =rel_hum,p=46.9000015259
+2019-02-18 21:40:24,500 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:40:24,625 - mqtt - INFO : received message =rel_hum,p=46.7999992371
+2019-02-18 21:40:56,078 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:40:56,171 - mqtt - INFO : received message =rel_hum,p=46.9000015259
+2019-02-18 21:41:27,766 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:41:27,891 - mqtt - INFO : received message =rel_hum,p=46.7000007629
+2019-02-18 21:41:59,359 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:41:59,438 - mqtt - INFO : received message =rel_hum,p=46.7999992371
+2019-02-18 21:42:31,101 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:42:31,217 - mqtt - INFO : received message =rel_hum,p=46.5999984741
+2019-02-18 21:43:02,688 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:43:02,813 - mqtt - INFO : received message =rel_hum,p=46.7999992371
+2019-02-18 21:43:34,312 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:43:34,391 - mqtt - INFO : received message =rel_hum,p=46.7999992371
+2019-02-18 21:44:06,000 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:44:06,128 - mqtt - INFO : received message =rel_hum,p=46.7999992371
+2019-02-18 21:44:37,594 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:44:37,671 - mqtt - INFO : received message =rel_hum,p=46.7000007629
+2019-02-18 21:45:09,276 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:45:09,401 - mqtt - INFO : received message =rel_hum,p=46.9000015259
+2019-02-18 21:45:25,698 - piclock - INFO : getting current and forecast:Mon Feb 18 21:45:25 2019
+2019-02-18 21:45:25,808 - mqtt - INFO : Wait for connect
+2019-02-18 21:45:25,917 - mqtt - INFO : connected OK
+2019-02-18 21:45:25,917 - mqtt - INFO : Start Main loop
+2019-02-18 21:45:25,996 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:45:26,073 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:48:06,971 - piclock - INFO : getting current and forecast:Mon Feb 18 21:48:06 2019
+2019-02-18 21:48:07,081 - mqtt - INFO : Wait for connect
+2019-02-18 21:48:07,171 - mqtt - INFO : connected OK
+2019-02-18 21:48:07,171 - mqtt - INFO : Start Main loop
+2019-02-18 21:48:07,262 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:48:07,339 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:48:19,130 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:48:19,252 - mqtt - INFO : received message =rel_hum,p=47.0
+2019-02-18 21:50:12,344 - piclock - INFO : getting current and forecast:Mon Feb 18 21:50:12 2019
+2019-02-18 21:50:12,453 - mqtt - INFO : Wait for connect
+2019-02-18 21:50:12,562 - mqtt - INFO : connected OK
+2019-02-18 21:50:12,562 - mqtt - INFO : Start Main loop
+2019-02-18 21:50:12,640 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:50:12,719 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:51:01,634 - piclock - INFO : getting current and forecast:Mon Feb 18 21:51:01 2019
+2019-02-18 21:51:01,743 - mqtt - INFO : Wait for connect
+2019-02-18 21:51:01,821 - mqtt - INFO : connected OK
+2019-02-18 21:51:01,821 - mqtt - INFO : Start Main loop
+2019-02-18 21:51:01,914 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:51:02,009 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:51:35,640 - piclock - INFO : getting current and forecast:Mon Feb 18 21:51:35 2019
+2019-02-18 21:51:35,749 - mqtt - INFO : Wait for connect
+2019-02-18 21:51:35,842 - mqtt - INFO : connected OK
+2019-02-18 21:51:35,842 - mqtt - INFO : Start Main loop
+2019-02-18 21:51:35,937 - mqtt - INFO : Subscribed: 1 (0,)
+2019-02-18 21:51:36,015 - mqtt - INFO : Subscribed: 2 (0,)
+2019-02-18 21:52:00,562 - mqtt - INFO : received message =temp,c=20.2999992371
+2019-02-18 21:52:00,640 - mqtt - INFO : received message =rel_hum,p=47.2000007629
