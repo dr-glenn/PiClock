@@ -82,23 +82,26 @@ class CurrentObsDisp(QtGui.QLabel):
             # wxicon - a large weather icon (150x150) near top-left
             # TODO: awful - what is current value of ypos? Should be passed to init
             ypos = -25
+            wxiconSize = 150
             self.wxicon = QtGui.QLabel(frame)
             self.wxicon.setObjectName("wxicon")
             self.wxicon.setStyleSheet("#wxicon { background-color: transparent; }")
-            self.wxicon.setGeometry(75 * xscale, ypos * yscale, 150 * xscale, 150 * yscale)
+            self.wxicon.setGeometry(75 * xscale, ypos * yscale, wxiconSize * xscale, wxiconSize * yscale)
             #self.wxicon.setGeometry(75 * xscale, ypos * yscale, 100 * xscale, 100 * yscale)
 
             # Text description of weather, e.g., "Sunny"
-            # with icon size=150, ypos+=130
-            ypos += 130
-            # with icon size=100, ypos+=80
-            #ypos += 80
+            if wxiconSize == 150:
+                ypos += 110
+            elif wxiconSize == 100:
+                ypos += 80
+            else:
+                ypos += 80
             self.wxdesc = QtGui.QLabel(frame)
             self.wxdesc.setObjectName("wxdesc")
             self.wxdesc.setStyleSheet("#wxdesc { background-color: transparent; color: " +
                                  Config.textcolor +
                                  "; font-size: " +
-                                 str(int(30 * xscale)) +
+                                 str(int(40 * xscale)) +
                                  "px; " +
                                  Config.fontattr +
                                  "}")
@@ -106,7 +109,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.wxdesc.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
             # Current temperature from Wunderground
-            ypos += 25
+            ypos += 60
             self.temper = QtGui.QLabel(frame)
             self.temper.setObjectName("temper")
             self.temper.setStyleSheet("#temper { background-color: transparent; color: " +
@@ -117,76 +120,81 @@ class CurrentObsDisp(QtGui.QLabel):
                                  Config.fontattr +
                                  "}")
             self.temper.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-            self.temper.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+            self.temper.setGeometry(3 * xscale, ypos * yscale, 330 * xscale, 100)
 
             # Current pressure from Wunderground
+            # if font-size 25, ypos+=60
             ypos += 60
             self.press = QtGui.QLabel(frame)
             self.press.setObjectName("press")
             self.press.setStyleSheet("#press { background-color: transparent; color: " +
                                 Config.textcolor +
                                 "; font-size: " +
-                                str(int(25 * xscale)) +
+                                str(int(50 * xscale)) +
                                 "px; " +
                                 Config.fontattr +
                                 "}")
-            self.press.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-            self.press.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+            self.press.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            self.press.setGeometry(3 * xscale, ypos * yscale, 330 * xscale, 100)
 
             # Current humidity from Wunderground
-            ypos += 30
+            # if font-size 25, ypos += 30
+            ypos += 60
             self.humidity = QtGui.QLabel(frame)
             self.humidity.setObjectName("humidity")
             self.humidity.setStyleSheet("#humidity { background-color: transparent; color: " +
                                    Config.textcolor +
                                    "; font-size: " +
-                                   str(int(25 * xscale)) +
+                                   str(int(50 * xscale)) +
                                    "px; " +
                                    Config.fontattr +
                                    "}")
-            self.humidity.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-            self.humidity.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
+            self.humidity.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            self.humidity.setGeometry(3 * xscale, ypos * yscale, 330 * xscale, 100)
 
             # Current winds: direction, speed, gust speed
-            ypos += 30
+            # if font-size 20, ypos += 30
+            ypos += 60
             self.wind = QtGui.QLabel(frame)
             self.wind.setObjectName("wind")
             self.wind.setStyleSheet("#wind { background-color: transparent; color: " +
                                Config.textcolor +
                                "; font-size: " +
-                               str(int(20 * xscale)) +
+                               str(int(40 * xscale)) +
                                "px; " +
                                Config.fontattr +
                                "}")
-            self.wind.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wind.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             self.wind.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
             # wind2 - this is the "feels_like" temperature, based on wind speed
-            ypos += 20
+            # if font-size 20, ypos += 20
+            ypos += 100 # previous display field takes 2 lines
             self.wind2 = QtGui.QLabel(frame)
             self.wind2.setObjectName("wind2")
             self.wind2.setStyleSheet("#wind2 { background-color: transparent; color: " +
                                 Config.textcolor +
                                 "; font-size: " +
-                                str(int(20 * xscale)) +
+                                str(int(40 * xscale)) +
                                 "px; " +
                                 Config.fontattr +
                                 "}")
-            self.wind2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wind2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             self.wind2.setGeometry(3 * xscale, ypos * yscale, 300 * xscale, 100)
 
             # wdate - shows current time and date + hourly and daily precip
-            ypos += 20
+            # if font-size 20, ypos += 20
+            ypos += 50
             self.wdate = QtGui.QLabel(frame)
             self.wdate.setObjectName("wdate")
             self.wdate.setStyleSheet("#wdate { background-color: transparent; color: " +
                                 Config.textcolor +
                                 "; font-size: " +
-                                str(int(20 * xscale)) +
+                                str(int(40 * xscale)) +
                                 "px; " +
                                 Config.fontattr +
                                 "}")
-            self.wdate.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+            self.wdate.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             self.wdate.setGeometry(3 * xscale, ypos * yscale, 350 * xscale, 100)
         else:
             # Large display shown when radar is also large size
@@ -261,13 +269,18 @@ class CurrentObsDisp(QtGui.QLabel):
             self.wind.setText(Config.LWind +
                          wd + ' ' +
                          str(currObs.getObsStr('wind_speed')) +
-                         Config.Lgusting +
+                         '\n' + Config.Lgusting +
                          str(currObs.getObsStr('wind_gust')))
             self.wind2.setText(Config.LFeelslike + currObs.getObsStr('temp_feels_like'))
-            self.wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
-                int(currObs.getObsStr('local_epoch')))) +
-                Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + ' ' +
-                Config.LToday + currObs.getObsStr('precip_today'))
+            if False:
+                # Don't want time, it takes too much space
+                self.wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
+                    int(currObs.getObsStr('local_epoch')))) +
+                    Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + ' ' +
+                    Config.LToday + currObs.getObsStr('precip_today'))
+            else:
+                self.wdate.setText(Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + '\n' +
+                    Config.LToday + currObs.getObsStr('precip_today'))
         else:
             self.wxicon2.setPixmap(wxiconpixmap.scaled(
                 self.wxicon2.width(), self.wxicon2.height(), iconAspect,
