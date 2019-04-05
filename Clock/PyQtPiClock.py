@@ -19,7 +19,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(messag
 handler.setFormatter(formatter)
 defLogger = logging.getLogger('')
 defLogger.addHandler(handler)
-defLogger.setLevel(logging.INFO)
+defLogger.setLevel(logging.DEBUG)
 logger = logging.getLogger('piclock')
 
 from PyQt4 import QtGui, QtCore, QtNetwork
@@ -33,6 +33,7 @@ from subprocess import Popen
 sys.dont_write_bytecode = True
 from GoogleMercatorProjection import getCorners             # NOQA
 import ApiKeys                                              # NOQA
+import DarkSkyProvider as darksky
 import mqtt_fetch
 isMqttRun = False
 
@@ -52,6 +53,21 @@ fcst_days  = range(0,numDaily)
 iconAspect = Qt.KeepAspectRatio
 onlyDaily = False   # forecast displays are mix of hourly and daily or only daily
 
+def wind_cardinal(degrees):
+    wd = {
+        0:  'N',
+        45: 'NE',
+        90: 'E',
+        135:    'SE',
+        180:    'S',
+        225:    'SW',
+        270:    'W',
+        315:    'NW',
+        360:    'N'
+    }
+    d = 45 * int((degrees /45.0) + 0.5)
+    logger.debug('wind_cardinal: %f -> %s' %(degrees,wd[d]))
+    return wd[d]
         
 class CurrentObsDisp(QtGui.QLabel):
     '''
@@ -253,34 +269,33 @@ class CurrentObsDisp(QtGui.QLabel):
             self.temper2.setGeometry(125 * xscale, 780 * yscale, 300 * xscale, 100)
         
     def fill_obs(self,currObs):
-        wxiconpixmap = QtGui.QPixmap(currObs.getObsStr('icon'))
+        data = currObs.getObsStr('icon')
+        if data:
+            logger.debug('icon = %s' %(data))
+            wxiconpixmap = QtGui.QPixmap(data)
         if self.small:
             self.wxicon.setPixmap(wxiconpixmap.scaled(
                 self.wxicon.width(), self.wxicon.height(), iconAspect,
                 Qt.SmoothTransformation))
             self.wxdesc.setText(currObs.getObsStr('wx_text'))
             self.temper.setText(currObs.getObsStr('temp'))
-            self.press.setText(Config.LPressure +
-                          currObs.getObsStr('press') + ' ' + currObs.getObsStr('press_trend'))
+            if currObs.getObsStr('press_trend'):
+                self.press.setText(Config.LPressure + currObs.getObsStr('press') + ' ' + currObs.getObsStr('press_trend'))
+            else:
+                self.press.setText(Config.LPressure + currObs.getObsStr('press'))
             self.humidity.setText(Config.LHumidity + currObs.getObsStr('rel_hum'))
-            wd = currObs.getObsStr('wind_dir')
             if Config.wind_degrees:
-                wd = str(currObs.getObsStr('wind_degrees'))
+                wd = currObs.getObsStr('wind_degrees')
+                wd = wind_cardinal(float(wd))
+            else:
+                wd = currObs.getObsStr('wind_dir')
             self.wind.setText(Config.LWind +
                          wd + ' ' +
                          str(currObs.getObsStr('wind_speed')) +
                          '\n' + Config.Lgusting +
                          str(currObs.getObsStr('wind_gust')))
             self.wind2.setText(Config.LFeelslike + currObs.getObsStr('temp_feels_like'))
-            if False:
-                # Don't want time, it takes too much space
-                self.wdate.setText("{0:%H:%M}".format(datetime.datetime.fromtimestamp(
-                    int(currObs.getObsStr('local_epoch')))) +
-                    Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + ' ' +
-                    Config.LToday + currObs.getObsStr('precip_today'))
-            else:
-                self.wdate.setText(Config.LPrecip1hr + currObs.getObsStr('precip_1hr') + '\n' +
-                    Config.LToday + currObs.getObsStr('precip_today'))
+            self.wdate.setText(Config.LPrecip1hr + currObs.getObsStr('precip_1hr'))
         else:
             self.wxicon2.setPixmap(wxiconpixmap.scaled(
                 self.wxicon2.width(), self.wxicon2.height(), iconAspect,
@@ -321,7 +336,8 @@ class FcstDisp(QtGui.QLabel):
         # wx: text that spells out some of the forecast
         wx = QtGui.QLabel(self)
         wx.setStyleSheet("#wx {%s}" %(textStyle))
-        wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
+        #wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
+        wx.setGeometry(2, 10 * yscale, self.boxWidth * xscale, 20 * yscale)
         wx.setObjectName("wx")
 
         # wx2: text that spells out some of the forecast
@@ -349,6 +365,7 @@ class FcstDisp(QtGui.QLabel):
         '''
         global iconAspect
         icon = self.findChild(QtGui.QLabel,"icon")
+        logger.debug('icon = %s' %(f.getObsStr('icon')))
         wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
         icon.setPixmap(wxiconpixmap.scaled(
             icon.width(),
@@ -360,7 +377,10 @@ class FcstDisp(QtGui.QLabel):
         wx.setText(f.getObsStr('wx_text'))
         # Show the day name + time if hourly forecast
         day = self.findChild(QtGui.QLabel, "day")
-        day.setText(f.getObsStr('day'))   # TODO: we're missing f['FCTTIME']['civil']
+        # TODO: not best way to do this, should happen in DarkSkyProvider
+        epoch = f.getObsStr('day') # returns epoch time
+        dt = datetime.datetime.fromtimestamp(float(epoch))
+        day.setText(str(dt.strftime('%a')))   # TODO: we're missing f['FCTTIME']['civil']
         # Show precip forecast and temperature. If daily, then show temp range.
         wx2 = self.findChild(QtGui.QLabel, "wx2")
         s = ''
@@ -385,6 +405,7 @@ class FcstDisp(QtGui.QLabel):
         '''
         global iconAspect
         icon = self.findChild(QtGui.QLabel,"icon")
+        logger.debug('icon = %s' %(f.getObsStr('icon')))
         wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
         icon.setPixmap(wxiconpixmap.scaled(
             icon.width(),
@@ -396,7 +417,11 @@ class FcstDisp(QtGui.QLabel):
         wx.setText(f.getObsStr('wx_text'))
         # Show the day name + time if hourly forecast
         day = self.findChild(QtGui.QLabel, "day")
-        day.setText(f.getObsStr('day')+' '+f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
+        epoch = f.getObsStr('hour') # returns epoch time
+        dt = datetime.datetime.fromtimestamp(float(epoch))
+        day.setText(str(dt.strftime('%a %HH')))   # TODO: we're missing f['FCTTIME']['civil']
+        #day.setText(f.getObsStr('day')+' '+f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
+        #day.setText(f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
         # Show precip forecast and temperature. If daily, then show temp range.
         wx2 = self.findChild(QtGui.QLabel, "wx2")
         s = ''
@@ -528,15 +553,21 @@ def tick():
 def getMqtt():
     '''
     Fetch environmental data using MQTT.
+    :return: tuple (timestamp, temperature, humidity)
     '''
     global isMqttRun
     if not isMqttRun:
         mqtt_fetch.run_as_service()
         isMqttRun = True
     if False:
+        ts = time.time()
         temp = 70.1
         humid = 50.5
     else:
+        if 'time' in mqtt_fetch.msg_dict:
+            ts = mqtt_fetch.msg_dict['time']
+        else:
+            ts = -1.0
         if 'temp' in mqtt_fetch.msg_dict:
             temp = float(mqtt_fetch.msg_dict['temp'])
             temp = 9.0/5.0 * temp + 32.0
@@ -546,12 +577,15 @@ def getMqtt():
             humid = float(mqtt_fetch.msg_dict['rel_hum'])
         else:
             humid = 0.0
-    return temp,humid
+    return ts,temp,humid
 
 def tempfinished():
     global tempreply, tempHouse
-    t,h = getMqtt()
-    tempHouse.setText('Temp=%.1f, Hum=%d%%' %(t,int(h))) # GDN: just testing
+    timestamp,t,h = getMqtt()
+    if abs(time.time() - timestamp) < 65.0:
+        tempHouse.setText('Temp=%.1f, Hum=%d%%' %(t,int(h)))
+    else:
+        tempHouse.setText('Temp sensor offline')
     '''
     if tempreply.error() != QNetworkReply.NoError:
         return
@@ -591,123 +625,6 @@ def gettemp():
     tempreply.finished.connect(tempfinished)
     '''
     tempfinished()
-
-class WundergroundData:
-    '''
-    Abstract Class.
-    Child classes: CurrentObs, FcstHourlyData, FcstDailyData.
-    Parses JSON returned from Wunderground according to a list of keys.
-    We request current observations and hourly and daily forecasts.
-    Each of these items contains different sets of data with different keys.
-    Once the data is parsed, the application can then request that the
-    data be returned as a string, ready for display.
-    '''
-    def __init__(self,wxdata,dataKeys,daily=False):
-        self.daily = daily
-        self.obs = {}
-        for key in dataKeys:
-            if isinstance(key[1],(list,tuple)):
-                try:
-                    kk = key[1]
-                    data = wxdata[kk[0]][kk[1]]
-                except:
-                    logger.error('key=%s, wxdata=%s' %(str(kk),str(wxdata[kk[0]])))
-            else:
-                data = wxdata[key[1]]
-            if key[2] == -1 or key[2] == Config.metric:
-                # Config.metric has value of either 0 or 1
-                self.obs[key[0]] = [data,key[3]]
-            else:
-                # key[2] != Config.metric, so skip this obs
-                pass
-                
-        # Special case for 'icon', because we have local copies
-        iconurl = wxdata['icon_url']
-        icp = ''
-        if not daily and re.search('/nt_', iconurl):
-            icp = 'n_'
-        self.obs['icon'] = [Config.icons + "/" + icp + wxdata['icon'] + ".png",'']
-                
-    def getObsStr(self,key):
-        # Get value from wxdata + the appropriate units string
-        return str(self.obs[key][0]) + self.obs[key][1]
-        
-class CurrentObs(WundergroundData):
-    # Lookup table for key used in application display,
-    # key used in wxdata returned by wunderground,
-    # metric=1 or English=0 units or no_units=-1
-    # and displays units (if any) in the application
-    obsKeys = [
-        # app key,  data key,   metric, units
-        ('icon',                'icon',                -1,      ''),
-        ('wx_text',             'weather',             -1,      ''),
-        ('press_trend',         'pressure_trend',      -1,      ''),
-        ('rel_hum',             'relative_humidity',   -1,      ''),
-        ('wind_dir',            'wind_dir',            -1,      ''),
-        ('wind_degrees',        'wind_degrees',        -1,      ''),
-        ('local_epoch',         'local_epoch',         -1,      ''),
-        ('temp',                'temp_c',               1,      u'°C'),
-        ('temp',                'temp_f',               0,      u'°F'),
-        ('press',               'pressure_mb',          1,      'mm'),
-        ('press',               'pressure_in',          0,      'in'),
-        ('temp_feels_like',     'feelslike_c',          1,      u'°C'),
-        ('temp_feels_like',     'feelslike_f',          0,      u'°F'),
-        ('wind_speed',          'wind_kph',             1,      ''),
-        ('wind_speed',          'wind_mph',             0,      ''),
-        ('wind_gust',           'wind_gust_kph',        1,      ''),
-        ('wind_gust',           'wind_gust_mph',        0,      ''),
-        ('precip_1hr',          'precip_1hr_metric',    1,      'mm'),
-        ('precip_today',        'precip_today_metric',  1,      'mm'),
-        ('precip_1hr',          'precip_1hr_in',        0,      'in'),
-        ('precip_today',        'precip_today_in',      0,      'in'),
-    ]
-    def __init__(self,wxdata):
-        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
-
-class FcstDailyData(WundergroundData):
-    # Lookup table for key used in application display,
-    # key used in wxdata returned by wunderground,
-    # metric=1 or English=0 units,
-    # and displays units (if any) in the application
-    obsKeys = [
-        # app key,  data key,   metric, units
-        ('icon',                'icon',                -1,      ''),
-        ('wx_text',             'conditions',             -1,      ''),
-        ('day',             ['date','weekday_short'],             -1,      ''),
-        ('temp_high',                ['high','celsius'],               1,      u'°C'),
-        ('temp_low',                ['low','celsius'],               1,      u'°C'),
-        ('temp_high',                ['high','fahrenheit'],               0,      u'°F'),
-        ('temp_low',                ['low','fahrenheit'],               0,      u'°F'),
-        ('pop',          'pop',    -1,      '%'),
-        ('qpf',          ['qpf_allday','mm'],    1,      'mm'),
-        ('qpf',          ['qpf_allday','in'],        0,      'in'),
-        ('snow',          ['snow_allday','cm'],    1,      'mm'),
-        ('snow',          ['snow_allday','in'],        0,      'in'),
-    ]
-    def __init__(self,wxdata):
-        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=True)
-
-class FcstHourlyData(WundergroundData):
-    # Lookup table for key used in application display,
-    # key used in wxdata returned by wunderground,
-    # metric=1 or English=0 units,
-    # and displays units (if any) in the application
-    obsKeys = [
-        # app key,  data key,   metric, units
-        ('icon',                'icon',                -1,      ''),
-        ('wx_text',             'condition',             -1,      ''),
-        ('day',             ['FCTTIME','weekday_name_abbrev'],             -1,      ''),
-        ('hour',             ['FCTTIME','civil'],             -1,      ''),
-        ('temp',                ['temp','metric'],               1,      u'°C'),
-        ('temp',                ['temp','english'],               0,      u'°F'),
-        ('pop',          'pop',    -1,      '%'),
-        ('qpf',          ['qpf','metric'],    1,      'mm'),
-        ('qpf',          ['qpf','english'],        0,      'in'),
-        ('snow',          ['snow','metric'],    1,      'mm'),
-        ('snow',          ['snow','english'],        0,      'in'),
-    ]
-    def __init__(self,wxdata):
-        WundergroundData.__init__(self,wxdata,self.obsKeys,daily=False)
     
 def debugPrint(bugFile,theString):
     bugFile.write(theString)
@@ -729,21 +646,24 @@ def wxfinished():
     global wxicon, temper, wxdesc, press, humidity
     global wind, wind2, wdate, bottom, forecast
     global wxicon2, temper2, wxdesc2
+    global wxProvider
 
-    wxstr = str(wxreply.readAll())
-    if not wxstr:
-        return
-    wxdata = json.loads(wxstr)
+    wxdata = wxProvider.getData()
+    if True:
+        # primary keys in wxdata
+        wx_keys = []
+        for wx_key in wxdata:
+            wx_keys.append(wx_key)
+        logger.debug('wx_keys = %s' %(str(wx_keys)))
     if False:
         # GDN: I wonder what's in there? Let's write to file and find out.
         bugFile = open('debug.log','w')
         debugPrint(bugFile,wxstr)
         bugFile.close()
-    f = wxdata['current_observation']
-    currObs = CurrentObs(f)
+    currObs = darksky.CurrentObs(wxdata)
     currObsDispSmall.fill_obs(currObs)
     currObsDispBig.fill_obs(currObs)
-
+    """
     bottom.setText(Config.LSunRise +
                    wxdata['sun_phase']['sunrise']['hour'] + ':' +
                    wxdata['sun_phase']['sunrise']['minute'] +
@@ -753,23 +673,9 @@ def wxfinished():
                    Config.LMoonPhase +
                    wxdata['moon_phase']['phaseofMoon']
                    )
+    """
     
-    if True:
-        updateFcstDisp()
-    else:
-        # Fill first few boxes with today forecasts
-        for i in range(0, numHourly):
-            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
-            fcstDisp = forecast[i]
-            hourly = FcstHourlyData(f)
-            fcstDisp.fill_hourly_fcst_box(hourly)
-
-        # Fill next boxes with future daily forecasts
-        for i in range(0, numDaily):
-            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
-            fcstDisp = forecast[i+numHourly]
-            daily = FcstDailyData(f)
-            fcstDisp.fill_daily_fcst_box(daily)
+    updateFcstDisp()
 
 def updateFcstDisp():
     '''
@@ -781,25 +687,27 @@ def updateFcstDisp():
         numDaily = maxDailyDisp
         # Fill next boxes with future daily forecasts
         for i in range(0, numDaily):
-            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            #f = wxdata['daily'][i]
             fcstDisp = forecast[i]
-            daily = FcstDailyData(f)
+            daily = darksky.FcstDailyData(wxdata,i)
             fcstDisp.fill_daily_fcst_box(daily)
     else:
         numDaily = numDailyDisp
         # Fill first few boxes with today forecasts
         for i in range(0, numHourly):
-            f = wxdata['hourly_forecast'][i * 3 + 2]    # every 3 hours
+            #f = wxdata['hourly'][i * 3 + 2]    # every 3 hours
             fcstDisp = forecast[i]
-            hourly = FcstHourlyData(f)
+            hourly = darksky.FcstHourlyData(wxdata,i*3+2)
             fcstDisp.fill_hourly_fcst_box(hourly)
 
         # Fill next boxes with future daily forecasts
         for i in range(0, numDaily):
-            f = wxdata['forecast']['simpleforecast']['forecastday'][i]
+            #f = wxdata['daily'][i]
             fcstDisp = forecast[i+numHourly]
-            daily = FcstDailyData(f)
+            daily = darksky.FcstDailyData(wxdata,i)
             fcstDisp.fill_daily_fcst_box(daily)
+
+wxProvider = darksky.WxData()
     
 def getwx():
     '''
@@ -811,6 +719,7 @@ def getwx():
     # forecast in one call.
     global wxurl
     global wxreply
+    global wxProvider
     logger.info("getting current and forecast:" + time.ctime())
     # Refer to wunderground API docs: https://www.wunderground.com/weather/api/d/docs?d=data/forecast10day
     # Each of the queries returns a lot of JSON. I'm going to list the expected returns.
@@ -820,18 +729,9 @@ def getwx():
     hourly10day: hourly_forecast:FCTTIME + <various forecast values>
     forecast10day: forecast:txt_forecast:forecastday and forecast:simpleforecast:forecastday
     '''
-    wxurl = Config.wuprefix + ApiKeys.wuapi + \
-        '/conditions/astronomy/hourly10day/forecast10day/lang:' + \
-        Config.wuLanguage + '/q/'
-    wxurl += str(Config.wulocation.lat) + ',' + \
-        str(Config.wulocation.lng) + '.json'
-    wxurl += '?r=' + str(random.random())
-    logger.debug('wxurl='+wxurl)
-    r = QUrl(wxurl)
-    r = QNetworkRequest(r)
-    wxreply = manager.get(r)
-    wxreply.finished.connect(wxfinished)
-
+    wxProvider.getwx()
+    if wxProvider.hasData:
+        wxfinished()
 
 def getallwx():
     getwx()
@@ -1220,7 +1120,6 @@ class myMain(QtGui.QWidget):
         if type(event) == QtGui.QMouseEvent:
             nextframe(1)
 
-bFullScreen = False
 configname = 'Config'
 
 if len(sys.argv) > 1:
@@ -1309,7 +1208,7 @@ lastkeytime = 0
 lastapiget = time.time()
 
 app = QtGui.QApplication(sys.argv)
-if bFullScreen:    # GDN
+if Config.bFullScreen:    # GDN
     desktop = app.desktop()
     rec = desktop.screenGeometry()
     height = rec.height()
@@ -1318,7 +1217,7 @@ if bFullScreen:    # GDN
 signal.signal(signal.SIGINT, myquit)
 
 w = myMain()
-if not bFullScreen:    # GDN
+if not Config.bFullScreen:    # GDN
     # GDN
     height = 480
     width  = 800
@@ -1558,7 +1457,7 @@ stimer.singleShot(10, qtstart)
 # print radarurl(Config.radar1,radar1rect)
 
 w.show()
-if bFullScreen:     # GDN
+if Config.bFullScreen:     # GDN
     w.showFullScreen()
 
 #sys.exit(app.exec_())
