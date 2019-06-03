@@ -58,6 +58,7 @@ def on_message(mclient, userdata, message):
     # put info back to somebody
     # TODO: should be using user_data_set(), so that "userdata" has useful content.
     msg_dict[param] = fvalue
+    msg_dict['time'] = time.time()  # float, seconds since epoch
     #time.sleep(1)
     mclient.has_message = True
 
