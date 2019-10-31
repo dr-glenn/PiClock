@@ -936,9 +936,11 @@ class Radar(QtGui.QLabel):
             return
         logger.debug("radar map received:" + self.myname + ":" + time.ctime())
         self.wxmovie.stop()
+        # wxreply probably has GIF images
         self.wxdata = QtCore.QByteArray(self.wxreply.readAll())
         self.wxbuff = QtCore.QBuffer(self.wxdata)
         self.wxbuff.open(QtCore.QIODevice.ReadOnly)
+        # QMovie is constructed from the GIF images buffer
         mov = QMovie(self.wxbuff, 'GIF')
         logger.debug("radar map frame count:" + self.myname + ":" + \
             str(mov.frameCount()) + ":r" + str(self.retries))
@@ -1383,6 +1385,7 @@ else:
 # GDN: next two are radar displays in lower left that are vertically stacked
 # They are contained within frame1
 # This is regional display:
+# NexRAD GIF images are 600x550. These rectangles are half size
 radar1rect = QtCore.QRect(3 * xscale, 622 * yscale, 300 * xscale, 275 * yscale)
 objradar1 = Radar(frame1, Config.radar1, radar1rect, "radar1")
 objradar2 = None
@@ -1393,6 +1396,7 @@ if bShowBothRadar:
 
 # GDN: next two are radar displays that occupy most of screen and are side-by-side
 # They are contained within frame2
+# These rectangles are larger than full-size radar img (600x550)
 radar3rect = QtCore.QRect(13 * xscale, 50 * yscale, 700 * xscale, 700 * yscale)
 objradar3 = Radar(frame2, Config.radar3, radar3rect, "radar3")
 

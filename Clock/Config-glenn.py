@@ -1,6 +1,7 @@
 from GoogleMercatorProjection import LatLng
 from PyQt4.QtGui import QColor
 
+bFullScreen = False # has to be True for R-Pi touchscreen version
 
 # LOCATION(S)
 # Further radar configuration (zoom, marker location) can be
@@ -76,13 +77,13 @@ DateLocale = ''
 LPressure = "Pressure "
 LHumidity = "Humidity "
 LWind = "Wind "
-Lgusting = " gusting "
+Lgusting = "Gusting "
 LFeelslike = "Feels like "
-LPrecip1hr = " Precip 1hr:"
+LPrecip1hr = "Precip 1hr:"
 LToday = "Today: "
 LSunRise = "Sun Rise:"
 LSet = " Set: "
-LMoonPhase = " Moon Phase:"
+LMoonPhase = " Moon:"
 LInsideTemp = "Inside Temp "
 LRain = " Rain: "
 LSnow = " Snow: "
