@@ -1,5 +1,5 @@
 from GoogleMercatorProjection import LatLng
-from PyQt4.QtGui import QColor
+from PyQt5.QtGui import QColor
 
 bFullScreen = False # has to be True for R-Pi touchscreen version
 

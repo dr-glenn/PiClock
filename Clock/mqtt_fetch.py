@@ -128,7 +128,7 @@ def run_as_main():
         logger.info("interrupt")
         #raise
     finally:
-        print "Proper MQTT shutdown"
+        #print "Proper MQTT shutdown"
         logger.info("Proper MQTT shutdown")
         client.unsubscribe(TOPIC3)
         client.unsubscribe(TOPIC4)

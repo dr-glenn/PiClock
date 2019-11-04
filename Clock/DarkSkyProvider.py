@@ -4,14 +4,15 @@
 # This page describes the values returned: https://darksky.net/dev/docs#api-request-types
 # Or just look at this page for an example: https://darksky.net/dev/docs
 
-from PyQt4 import QtNetwork
-#from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
-from PyQt4.QtCore import QUrl
-#from PyQt4.QtCore import Qt
-from PyQt4.QtNetwork import QNetworkReply
-from PyQt4.QtNetwork import QNetworkRequest
+from PyQt5 import QtNetwork
+#from PyQt5.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
+from PyQt5.QtCore import QUrl
+#from PyQt5.QtCore import Qt
+from PyQt5.QtNetwork import QNetworkReply
+from PyQt5.QtNetwork import QNetworkRequest
 #from subprocess import Popen
-import urllib2
+import urllib
+#from urllib.request import urlopen,Request
 import json
 
 import Config
@@ -54,7 +55,7 @@ class WxData:
             self.wxreply = self.manager.get(r)
             self.wxreply.finished.connect(self.wxfinished)
         else:
-            self.wxreply = urllib2.urlopen(self.wxurl)
+            self.wxreply = urllib.request.urlopen(self.wxurl)
             wxstr = self.wxreply.read()
             logger.debug('wxstr: %s' %(wxstr[:200]))
             self.wxdata = json.loads(wxstr)

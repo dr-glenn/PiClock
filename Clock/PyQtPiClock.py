@@ -22,12 +22,12 @@ defLogger.addHandler(handler)
 defLogger.setLevel(logging.DEBUG)
 logger = logging.getLogger('piclock')
 
-from PyQt4 import QtGui, QtCore, QtNetwork
-from PyQt4.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
-from PyQt4.QtCore import QUrl
-from PyQt4.QtCore import Qt
-from PyQt4.QtNetwork import QNetworkReply
-from PyQt4.QtNetwork import QNetworkRequest
+from PyQt5 import QtGui, QtCore, QtNetwork, QtWidgets
+from PyQt5.QtGui import QPixmap, QMovie, QBrush, QColor, QPainter
+from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import Qt
+from PyQt5.QtNetwork import QNetworkReply
+from PyQt5.QtNetwork import QNetworkRequest
 from subprocess import Popen
 
 sys.dont_write_bytecode = True
@@ -69,12 +69,12 @@ def wind_cardinal(degrees):
     logger.debug('wind_cardinal: %f -> %s' %(degrees,wd[d]))
     return wd[d]
         
-class CurrentObsDisp(QtGui.QLabel):
+class CurrentObsDisp(QtWidgets.QLabel):
     '''
     Create the display boxes for current observations.
     '''
     def __init__(self,parent,bSmall):
-        QtGui.QLabel.__init__(self, parent)
+        QtWidgets.QLabel.__init__(self, parent)
         objName = "curr_obs"
         self.setObjectName(objName)
         self.small = bSmall
@@ -83,7 +83,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # Page with clock in center
             # datex displays "Thursday March 15th 2018".
             # It is large font, positioned at top center of screen
-            self.datex = QtGui.QLabel(frame)
+            self.datex = QtWidgets.QLabel(frame)
             self.datex.setObjectName("datex")
             self.datex.setStyleSheet("#datex { font-family:sans-serif; color: " +
                                 Config.textcolor +
@@ -99,7 +99,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # TODO: awful - what is current value of ypos? Should be passed to init
             ypos = -25
             wxiconSize = 150
-            self.wxicon = QtGui.QLabel(frame)
+            self.wxicon = QtWidgets.QLabel(frame)
             self.wxicon.setObjectName("wxicon")
             self.wxicon.setStyleSheet("#wxicon { background-color: transparent; }")
             self.wxicon.setGeometry(75 * xscale, ypos * yscale, wxiconSize * xscale, wxiconSize * yscale)
@@ -112,7 +112,7 @@ class CurrentObsDisp(QtGui.QLabel):
                 ypos += 80
             else:
                 ypos += 80
-            self.wxdesc = QtGui.QLabel(frame)
+            self.wxdesc = QtWidgets.QLabel(frame)
             self.wxdesc.setObjectName("wxdesc")
             self.wxdesc.setStyleSheet("#wxdesc { background-color: transparent; color: " +
                                  Config.textcolor +
@@ -126,7 +126,7 @@ class CurrentObsDisp(QtGui.QLabel):
 
             # Current temperature from Wunderground
             ypos += 60
-            self.temper = QtGui.QLabel(frame)
+            self.temper = QtWidgets.QLabel(frame)
             self.temper.setObjectName("temper")
             self.temper.setStyleSheet("#temper { background-color: transparent; color: " +
                                  Config.textcolor +
@@ -141,7 +141,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # Current pressure from Wunderground
             # if font-size 25, ypos+=60
             ypos += 60
-            self.press = QtGui.QLabel(frame)
+            self.press = QtWidgets.QLabel(frame)
             self.press.setObjectName("press")
             self.press.setStyleSheet("#press { background-color: transparent; color: " +
                                 Config.textcolor +
@@ -156,7 +156,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # Current humidity from Wunderground
             # if font-size 25, ypos += 30
             ypos += 60
-            self.humidity = QtGui.QLabel(frame)
+            self.humidity = QtWidgets.QLabel(frame)
             self.humidity.setObjectName("humidity")
             self.humidity.setStyleSheet("#humidity { background-color: transparent; color: " +
                                    Config.textcolor +
@@ -171,7 +171,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # Current winds: direction, speed, gust speed
             # if font-size 20, ypos += 30
             ypos += 60
-            self.wind = QtGui.QLabel(frame)
+            self.wind = QtWidgets.QLabel(frame)
             self.wind.setObjectName("wind")
             self.wind.setStyleSheet("#wind { background-color: transparent; color: " +
                                Config.textcolor +
@@ -186,7 +186,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # wind2 - this is the "feels_like" temperature, based on wind speed
             # if font-size 20, ypos += 20
             ypos += 100 # previous display field takes 2 lines
-            self.wind2 = QtGui.QLabel(frame)
+            self.wind2 = QtWidgets.QLabel(frame)
             self.wind2.setObjectName("wind2")
             self.wind2.setStyleSheet("#wind2 { background-color: transparent; color: " +
                                 Config.textcolor +
@@ -201,7 +201,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # wdate - shows current time and date + hourly and daily precip
             # if font-size 20, ypos += 20
             ypos += 50
-            self.wdate = QtGui.QLabel(frame)
+            self.wdate = QtWidgets.QLabel(frame)
             self.wdate.setObjectName("wdate")
             self.wdate.setStyleSheet("#wdate { background-color: transparent; color: " +
                                 Config.textcolor +
@@ -216,7 +216,7 @@ class CurrentObsDisp(QtGui.QLabel):
             # Large display shown when radar is also large size
             # datex2 displays "Thursday March 15th 2018".
             # It is large font, positioned at bottom right of screen when radar is full-scrren
-            self.datex2 = QtGui.QLabel(frame)
+            self.datex2 = QtWidgets.QLabel(frame)
             self.datex2.setObjectName("datex2")
             self.datex2.setStyleSheet("#datex2 { font-family:sans-serif; color: " +
                                  Config.textcolor +
@@ -226,7 +226,7 @@ class CurrentObsDisp(QtGui.QLabel):
                                  "}")
             self.datex2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
             self.datex2.setGeometry(800 * xscale, 780 * yscale, 640 * xscale, 100)
-            self.datey2 = QtGui.QLabel(frame)
+            self.datey2 = QtWidgets.QLabel(frame)
             self.datey2.setObjectName("datey2")
             self.datey2.setStyleSheet("#datey2 { font-family:sans-serif; color: " +
                                  Config.textcolor +
@@ -239,12 +239,12 @@ class CurrentObsDisp(QtGui.QLabel):
             self.datey2.setGeometry(800 * xscale, 840 * yscale, 640 * xscale, 100)
 
             # wxicon2 - a large weather icon (150x150) near bottom-left when radar is full-screen
-            self.wxicon2 = QtGui.QLabel(frame)
+            self.wxicon2 = QtWidgets.QLabel(frame)
             self.wxicon2.setObjectName("wxicon2")
             self.wxicon2.setStyleSheet("#wxicon2 { background-color: transparent; }")
             self.wxicon2.setGeometry(0 * xscale, 750 * yscale, 150 * xscale, 150 * yscale)
 
-            self.wxdesc2 = QtGui.QLabel(frame)
+            self.wxdesc2 = QtWidgets.QLabel(frame)
             self.wxdesc2.setObjectName("wxdesc2")
             self.wxdesc2.setStyleSheet("#wxdesc2 { background-color: transparent; color: " +
                                   Config.textcolor +
@@ -256,7 +256,7 @@ class CurrentObsDisp(QtGui.QLabel):
             self.wxdesc2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             self.wxdesc2.setGeometry(400 * xscale, 800 * yscale, 400 * xscale, 100)
 
-            self.temper2 = QtGui.QLabel(frame)
+            self.temper2 = QtWidgets.QLabel(frame)
             self.temper2.setObjectName("temper2")
             self.temper2.setStyleSheet("#temper2 { background-color: transparent; color: " +
                                   Config.textcolor +
@@ -306,7 +306,7 @@ class CurrentObsDisp(QtGui.QLabel):
 # Create boxes on right side that contain forecasts for different time periods, 'i'.
 # Evidently each box contains smaller areas named "icon", "wx", "wx2", "day"
 # I guess these regions are later filled with data.
-class FcstDisp(QtGui.QLabel):
+class FcstDisp(QtWidgets.QLabel):
     boxWidth = 340
     textHeight = 20
     def __init__(self,parent,i):
@@ -314,7 +314,7 @@ class FcstDisp(QtGui.QLabel):
         :param parent: the QtGui object that holds this FcstDisp object
         :param i: the index of this object, becomes part of ObjectName
         '''
-        QtGui.QLabel.__init__(self, parent)
+        QtWidgets.QLabel.__init__(self, parent)
         objName = "forecast"+str(i)
         self.setObjectName(objName)
         style = "%s { background-color: transparent; color:%s; font-size:%dpx; %s; border:1px solid rgb(0, 255, 255);}" \
@@ -327,21 +327,21 @@ class FcstDisp(QtGui.QLabel):
                         (self.boxWidth*xscale)-12, ht_forecast * yscale)
         # Now define the contents of FcstDisp box
         # icon: displays a weather icon: cloud, sun, rain, etc.
-        icon = QtGui.QLabel(self)
+        icon = QtWidgets.QLabel(self)
         icon.setStyleSheet("#icon { background-color: transparent; }")
         icon.setGeometry(0, 0, 100 * xscale, ht_forecast * yscale)
         icon.setObjectName("icon")
 
         textStyle = "background-color: transparent; color:%s; font-size:%spx; %s; " %(Config.textcolor,str(int(25 * xscale)),Config.fontattr)
         # wx: text that spells out some of the forecast
-        wx = QtGui.QLabel(self)
+        wx = QtWidgets.QLabel(self)
         wx.setStyleSheet("#wx {%s}" %(textStyle))
         #wx.setGeometry(100 * xscale, 10 * yscale, 200 * xscale, 20 * yscale)
         wx.setGeometry(2, 10 * yscale, self.boxWidth * xscale, 20 * yscale)
         wx.setObjectName("wx")
 
         # wx2: text that spells out some of the forecast
-        wx2 = QtGui.QLabel(self)
+        wx2 = QtWidgets.QLabel(self)
         wx2.setStyleSheet("#wx2 {%s}" %(textStyle))
         wx2.setGeometry(100 * xscale, 30 * yscale, 200 * xscale, ht_forecast * yscale)
         wx2.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -349,7 +349,7 @@ class FcstDisp(QtGui.QLabel):
         wx2.setObjectName("wx2")
 
         # day: date and day of the week
-        day = QtGui.QLabel(self)
+        day = QtWidgets.QLabel(self)
         day.setStyleSheet("#day {%s}" %(textStyle))
         #day.setGeometry(100 * xscale, 75 * yscale, 200 * xscale, 25 * yscale)
         day.setGeometry(100 * xscale, ht_forecast * yscale - 25, 200 * xscale, 25 * yscale)
@@ -364,7 +364,7 @@ class FcstDisp(QtGui.QLabel):
         different keys depending on if it's an hourly or daily forecast.
         '''
         global iconAspect
-        icon = self.findChild(QtGui.QLabel,"icon")
+        icon = self.findChild(QtWidgets.QLabel,"icon")
         logger.debug('icon = %s' %(f.getObsStr('icon')))
         wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
         icon.setPixmap(wxiconpixmap.scaled(
@@ -373,16 +373,16 @@ class FcstDisp(QtGui.QLabel):
             iconAspect,
             Qt.SmoothTransformation))
         # Show conditions, such as "clear" or "cloudy"
-        wx = self.findChild(QtGui.QLabel, "wx")
+        wx = self.findChild(QtWidgets.QLabel, "wx")
         wx.setText(f.getObsStr('wx_text'))
         # Show the day name + time if hourly forecast
-        day = self.findChild(QtGui.QLabel, "day")
+        day = self.findChild(QtWidgets.QLabel, "day")
         # TODO: not best way to do this, should happen in DarkSkyProvider
         epoch = f.getObsStr('day') # returns epoch time
         dt = datetime.datetime.fromtimestamp(float(epoch))
         day.setText(str(dt.strftime('%a')))   # TODO: we're missing f['FCTTIME']['civil']
         # Show precip forecast and temperature. If daily, then show temp range.
-        wx2 = self.findChild(QtGui.QLabel, "wx2")
+        wx2 = self.findChild(QtWidgets.QLabel, "wx2")
         s = ''
         s += f.getObsStr('pop') + ' '     # TODO: we need special handling when pop==0.0
         # TODO: need special handling if snow or qpf == 0.0
@@ -404,7 +404,7 @@ class FcstDisp(QtGui.QLabel):
         different keys depending on if it's an hourly or daily forecast.
         '''
         global iconAspect
-        icon = self.findChild(QtGui.QLabel,"icon")
+        icon = self.findChild(QtWidgets.QLabel,"icon")
         logger.debug('icon = %s' %(f.getObsStr('icon')))
         wxiconpixmap = QtGui.QPixmap(f.getObsStr('icon'))
         icon.setPixmap(wxiconpixmap.scaled(
@@ -413,17 +413,17 @@ class FcstDisp(QtGui.QLabel):
             iconAspect,
             Qt.SmoothTransformation))
         # Show conditions, such as "clear" or "cloudy"
-        wx = self.findChild(QtGui.QLabel, "wx")
+        wx = self.findChild(QtWidgets.QLabel, "wx")
         wx.setText(f.getObsStr('wx_text'))
         # Show the day name + time if hourly forecast
-        day = self.findChild(QtGui.QLabel, "day")
+        day = self.findChild(QtWidgets.QLabel, "day")
         epoch = f.getObsStr('hour') # returns epoch time
         dt = datetime.datetime.fromtimestamp(float(epoch))
         day.setText(str(dt.strftime('%a %HH')))   # TODO: we're missing f['FCTTIME']['civil']
         #day.setText(f.getObsStr('day')+' '+f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
         #day.setText(f.getObsStr('hour'))   # TODO: we're missing f['FCTTIME']['civil']
         # Show precip forecast and temperature. If daily, then show temp range.
-        wx2 = self.findChild(QtGui.QLabel, "wx2")
+        wx2 = self.findChild(QtWidgets.QLabel, "wx2")
         s = ''
         s += f.getObsStr('pop') + ' '     # TODO: we need special handling when pop==0.0
         # TODO: need special handling if snow or qpf == 0.0
@@ -475,8 +475,18 @@ def tick():
     else:
         angle = now.second * 6
         ts = secpixmap.size()
+        ''' PyQt4
         secpixmap2 = secpixmap.transformed(
             QtGui.QMatrix().scale(
+                float(clockrect.width()) / ts.height(),
+                float(clockrect.height()) / ts.height()
+            ).rotate(angle),
+            Qt.SmoothTransformation
+        )
+        '''
+        # PyQt5
+        secpixmap2 = secpixmap.transformed(
+            QtGui.QTransform().scale(
                 float(clockrect.width()) / ts.height(),
                 float(clockrect.height()) / ts.height()
             ).rotate(angle),
@@ -494,8 +504,18 @@ def tick():
             lastmin = now.minute
             angle = now.minute * 6
             ts = minpixmap.size()
+            ''' PyQt4
             minpixmap2 = minpixmap.transformed(
                 QtGui.QMatrix().scale(
+                    float(clockrect.width()) / ts.height(),
+                    float(clockrect.height()) / ts.height()
+                ).rotate(angle),
+                Qt.SmoothTransformation
+            )
+            '''
+            # PyQt5
+            minpixmap2 = minpixmap.transformed(
+                QtGui.QTransform().scale(
                     float(clockrect.width()) / ts.height(),
                     float(clockrect.height()) / ts.height()
                 ).rotate(angle),
@@ -513,7 +533,7 @@ def tick():
             angle = ((now.hour % 12) + now.minute / 60.0) * 30.0
             ts = hourpixmap.size()
             hourpixmap2 = hourpixmap.transformed(
-                QtGui.QMatrix().scale(
+                QtGui.QTransform().scale(
                     float(clockrect.width()) / ts.height(),
                     float(clockrect.height()) / ts.height()
                 ).rotate(angle),
@@ -771,7 +791,7 @@ def qtstart():
     temptimer.start(1000 * 60 * Config.home_refresh + random.uniform(1000, 10000))
 
 
-class Radar(QtGui.QLabel):
+class Radar(QtWidgets.QLabel):
 
     def __init__(self, parent, radar, rect, myname):
         global xscale, yscale
@@ -788,7 +808,7 @@ class Radar(QtGui.QLabel):
         self.mkurl = self.mapurl(radar, rect, True)
         self.wxurl = self.radarurl(radar, rect)
         logger.debug("radar url: " + self.wxurl)
-        QtGui.QLabel.__init__(self, parent)
+        QtWidgets.QLabel.__init__(self, parent)
         self.interval = Config.radar_refresh * 60
         self.lastwx = 0
         self.retries = 0
@@ -804,7 +824,7 @@ class Radar(QtGui.QLabel):
         self.setStyleSheet("#radar { background-color: transparent; border-width:3px; border-color: solid rgb(255, 255, 0); border-style: solid;}")
         self.setAlignment(Qt.AlignCenter)
 
-        self.wwx = QtGui.QLabel(self)
+        self.wwx = QtWidgets.QLabel(self)
         self.wwx.setObjectName("wx")
         # use padding or margin?
         #self.wwx.setStyleSheet("#wx { background-color: transparent; padding:4px; border-width:3px; border-color: solid rgb(255, 255, 0); border-style: outset;}")
@@ -812,7 +832,7 @@ class Radar(QtGui.QLabel):
         self.wwx.setStyleSheet("#wx { background-color: transparent;}")
         self.wwx.setGeometry(0, 0, rect.width(), rect.height())
 
-        self.wmk = QtGui.QLabel(self)
+        self.wmk = QtWidgets.QLabel(self)
         self.wmk.setObjectName("mk")
         self.wmk.setStyleSheet("#mk { background-color: transparent; }")
         self.wmk.setGeometry(0, 0, rect.width(), rect.height())
@@ -992,22 +1012,22 @@ class Radar(QtGui.QLabel):
         self.wxreq = QNetworkRequest(
             QUrl(self.wxurl + '&rrrand=' + str(time.time())))
         self.wxreply = manager.get(self.wxreq)
-        QtCore.QObject.connect(self.wxreply, QtCore.SIGNAL(
-            "finished()"), self.wxfinished)
+        #QtCore.QObject.connect(self.wxreply, QtCore.SIGNAL("finished()"), self.wxfinished)
+        self.wxreply.finished.connect(self.wxfinished)
 
     def getbase(self):
         global manager
         self.basereq = QNetworkRequest(QUrl(self.baseurl))
         self.basereply = manager.get(self.basereq)
-        QtCore.QObject.connect(self.basereply, QtCore.SIGNAL(
-            "finished()"), self.basefinished)
+        #QtCore.QObject.connect(self.basereply, QtCore.SIGNAL("finished()"), self.basefinished)
+        self.basereply.finished.connect(self.basefinished)
 
     def getmk(self):
         global manager
         self.mkreq = QNetworkRequest(QUrl(self.mkurl))
         self.mkreply = manager.get(self.mkreq)
-        QtCore.QObject.connect(self.mkreply, QtCore.SIGNAL(
-            "finished()"), self.mkfinished)
+        #QtCore.QObject.connect(self.mkreply, QtCore.SIGNAL("finished()"), self.mkfinished)
+        self.mkreply.finished.connect(self.mkfinished)
 
     def start(self, interval=0):
         if interval > 0:
@@ -1015,8 +1035,8 @@ class Radar(QtGui.QLabel):
         self.getbase()
         self.getmk()
         self.timer = QtCore.QTimer()
-        QtCore.QObject.connect(
-            self.timer, QtCore.SIGNAL("timeout()"), self.getwx)
+        #QtCore.QObject.connect(self.timer, QtCore.SIGNAL("timeout()"), self.getwx)
+        self.timer.timeout.connect(self.getwx)
 
     def wxstart(self):
         logger.debug("wxstart for " + self.myname)
@@ -1094,7 +1114,7 @@ def nextframe(plusminus):
     fixupframe(frames[framep], True)
 
 
-class myMain(QtGui.QWidget):
+class myMain(QtWidgets.QMainWindow):
 
     def keyPressEvent(self, event):
         global weatherplayer, lastkeytime
@@ -1209,7 +1229,7 @@ weatherplayer = None
 lastkeytime = 0
 lastapiget = time.time()
 
-app = QtGui.QApplication(sys.argv)
+app = QtWidgets.QApplication(sys.argv)
 if Config.bFullScreen:    # GDN
     desktop = app.desktop()
     rec = desktop.screenGeometry()
@@ -1229,7 +1249,7 @@ vWidth = 1600.0
 vHeight = 900.00
 w.setWindowTitle(os.path.basename(__file__))
 
-w.setStyleSheet("QWidget { background-color: black;}")
+w.setStyleSheet("QtWidgets { background-color: black;}")
 
 # fullbgpixmap = QtGui.QPixmap(Config.background)
 # fullbgrect = fullbgpixmap.rect()
@@ -1244,7 +1264,7 @@ yscale = float(height) / vHeight
 frames = []
 framep = 0
 
-frame1 = QtGui.QFrame(w)
+frame1 = QtWidgets.QFrame(w)
 frame1.setObjectName("frame1")
 frame1.setGeometry(0, 0, width, height)
 # 1. correct aspect ratio, but image is centered toward lower-right
@@ -1267,7 +1287,7 @@ frame1_style = "background-color: black; border-image: url(%s);" %(Config.backgr
 frame1.setStyleSheet("#frame1 {%s}" %(frame1_style))
 frames.append(frame1)
 
-frame2 = QtGui.QFrame(w)
+frame2 = QtWidgets.QFrame(w)
 frame2.setObjectName("frame2")
 frame2.setGeometry(0, 0, width, height)
 frame2.setStyleSheet("#frame2 { background-color: blue; border-image: url(" +
@@ -1275,7 +1295,7 @@ frame2.setStyleSheet("#frame2 { background-color: blue; border-image: url(" +
 frame2.setVisible(False)
 frames.append(frame2)
 
-# frame3 = QtGui.QFrame(w)
+# frame3 = QtWidgets.QFrame(w)
 # frame3.setObjectName("frame3")
 # frame3.setGeometry(0,0,width,height)
 # frame3.setStyleSheet("#frame3 { background-color: blue; border-image:
@@ -1286,7 +1306,7 @@ frames.append(frame2)
 # GDN: this draws borders around the two radar maps
 bShowBothRadar = False
 if bShowBothRadar:
-    squares1 = QtGui.QFrame(frame1)
+    squares1 = QtWidgets.QFrame(frame1)
     squares1.setObjectName("squares1")
     squares1.setGeometry(0, height - yscale * 600, xscale * 340, yscale * 600)
     squares1.setStyleSheet(
@@ -1299,7 +1319,7 @@ else:
     # Or I guess we could put the Radar inside "squares1"
     '''
     # It's a green frame
-    squares1 = QtGui.QFrame(frame1)
+    squares1 = QtWidgets.QFrame(frame1)
     squares1.setObjectName("squares1")
     squares1.setGeometry(0, height - yscale * 282, xscale * 310, yscale * 282)
     squares1.setStyleSheet(
@@ -1307,7 +1327,7 @@ else:
     '''
 
 # GDN: this draws frame around all the forecast boxes
-squares2 = QtGui.QFrame(frame1)
+squares2 = QtWidgets.QFrame(frame1)
 squares2.setObjectName("squares2")
 # GDN: why 340? Later when the labels "lab" are created, the value of 300 is used
 squares2.setGeometry(width - xscale * 340, 0, xscale * 340, yscale * vHeight)
@@ -1322,7 +1342,7 @@ else:
         "#squares2 { background-color: transparent; border:3px solid rgb(0, 255, 0);}")
 
 if not Config.digital:
-    clockface = QtGui.QFrame(frame1)
+    clockface = QtWidgets.QFrame(frame1)
     clockface.setObjectName("clockface")
     clockrect = QtCore.QRect(
         width / 2 - height * .4,
@@ -1335,15 +1355,15 @@ if not Config.digital:
         Config.clockface +
         ") 0 0 0 0 stretch stretch;}")
 
-    hourhand = QtGui.QLabel(frame1)
+    hourhand = QtWidgets.QLabel(frame1)
     hourhand.setObjectName("hourhand")
     hourhand.setStyleSheet("#hourhand { background-color: transparent; }")
 
-    minhand = QtGui.QLabel(frame1)
+    minhand = QtWidgets.QLabel(frame1)
     minhand.setObjectName("minhand")
     minhand.setStyleSheet("#minhand { background-color: transparent; }")
 
-    sechand = QtGui.QLabel(frame1)
+    sechand = QtWidgets.QLabel(frame1)
     sechand.setObjectName("sechand")
     sechand.setStyleSheet("#sechand { background-color: transparent; }")
 
@@ -1354,7 +1374,7 @@ if not Config.digital:
     secpixmap = QtGui.QPixmap(Config.sechand)
     secpixmap2 = QtGui.QPixmap(Config.sechand)
 else:
-    clockface = QtGui.QLabel(frame1)
+    clockface = QtWidgets.QLabel(frame1)
     clockface.setObjectName("clockface")
     clockrect = QtCore.QRect(
         width / 2 - height * .4,
@@ -1413,7 +1433,7 @@ datex2 = currObsDispBig.datex2
 datey2 = currObsDispBig.datey2
 
 # This is for display of sunrise and sunset
-bottom = QtGui.QLabel(frame1)
+bottom = QtWidgets.QLabel(frame1)
 bottom.setObjectName("bottom")
 bottom.setStyleSheet("#bottom { font-family:sans-serif; color: " +
                      Config.textcolor +
@@ -1426,7 +1446,7 @@ bottom.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 bottom.setGeometry(0, height - 50, width, 50)
 
 # This is display of your household temperature from a network connection
-tempHouse = QtGui.QLabel(frame1)
+tempHouse = QtWidgets.QLabel(frame1)
 tempHouse.setObjectName("temp")
 tempHouse.setStyleSheet("#temp { font-family:sans-serif; color: " +
                    Config.textcolor +

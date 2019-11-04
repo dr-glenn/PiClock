@@ -3,3 +3,5 @@
 wuapi = '2b87fe7b21048478'
 # Google Maps API key
 googleapi = ''   # Empty string, optional -- with PiClock, you'll be ok
+# Dark Sky API
+darksky_key = ''
